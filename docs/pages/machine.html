@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>台ダッシュボード</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{font-family:sans-serif;background:#111;color:#eee;margin:0;padding:1rem}
+  h1{font-size:1.3rem;margin:0 0 .8rem}
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem}
+
+  .card{
+    position:relative;
+    background:#222;
+    padding:.7rem .7rem 1.2rem;
+    border-radius:10px;
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .card:hover{outline:2px solid #555}
+
+  .add{
+    display:flex;justify-content:center;align-items:center;
+    font-size:3rem;background:#333
+  }
+
+  .small{font-size:.8rem;color:#999}
+
+  /* 右上ボタン */
+  .icon-btn{
+    position:absolute;top:4px;font-size:.9rem;color:#bbb;
+    display:none;width:1.4rem;height:1.4rem;justify-content:center;align-items:center;
+    border-radius:50%;background:#444;cursor:pointer
+  }
+  .card:hover .icon-btn{display:flex}
+  .rename{right:26px}
+  .delete{right:4px}
+  .icon-btn:hover{background:#666}
+</style>
+</head>
+<body>
+<h1>台 一覧</h1>
+<div id="list"></div>
+
+<script>
+const LS = 'pachi_';
+const list   = document.getElementById('list');
+
+/* 追加カード（＋） */
+const add = document.createElement('div');
+add.className='card add'; add.textContent='+';
+add.onclick = ()=>{
+  const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  const date=`${y}${m}${dd}`;
+  const serial = Object.keys(localStorage).filter(k=>k.startsWith(LS+'P'+date)).length+1;
+  const id = `P${date}_${serial}`;
+  localStorage.setItem(LS+id, JSON.stringify({title:id,records:[]}));
+  location.href=`sim.html?id=${id}`;
+};
+list.appendChild(add);
+
+/* ----- 既存カード作成 ----- */
+Object.keys(localStorage)
+ .filter(k=>k.startsWith(LS))
+ .sort((a,b)=> (JSON.parse(localStorage[b]).updated||0) - (JSON.parse(localStorage[a]).updated||0))
+ .forEach(key=>{
+    const id = key.slice(LS.length);
+    const data = JSON.parse(localStorage[key]);
+
+    /* カード本体 */
+    const card = document.createElement('div');
+    card.className='card';
+    card.onclick = ()=>location.href=`sim.html?id=${id}`;
+
+    /* 削除ボタン */
+    const del = document.createElement('div');
+    del.className='icon-btn delete';
+    del.textContent='🗑';
+    del.onclick = e=>{
+      e.stopPropagation();
+      if(confirm(`${data.title||id} を削除しますか？`)){
+        localStorage.removeItem(key);
+        card.remove();
+      }
+    };
+
+    /* ★ 名前変更ボタン */
+    const ren = document.createElement('div');
+    ren.className='icon-btn rename';
+    ren.textContent='✏';
+    ren.onclick = e=>{
+      e.stopPropagation();
+      const newName = prompt('新しい名前を入力', data.title||id);
+      if(newName!==null && newName.trim()){
+        data.title = newName.trim();
+        localStorage.setItem(key, JSON.stringify(data));
+        card.querySelector('strong').textContent = newName.trim();
+      }
+    };
+
+    const last = data.updated ? new Date(data.updated).toLocaleString() : '―';
+    const spin = data.totalSpin ?? '―';
+    const ex   = ((data.exBall??0)+(data.exCash??0)).toLocaleString();
+
+    card.innerHTML = `<strong>${data.title||id}</strong><br>
+      <span class="small">最終 ${last}</span><br>
+      回転数 ${spin}<br>
+      期待値 ${ex}`;
+
+    card.appendChild(ren);
+    card.appendChild(del);
+    list.appendChild(card);
+ });
+</script>
+</body>
+</html>

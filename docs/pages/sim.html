@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>実戦メモ</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet"
+ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--bg:#1a1a1a;--fg:#f8f8f8;--orange:#ff9800;--green:#00c853;--red:#ff5252;--purple:#c279ff;--row1:#303030;--row2:#262626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:6rem}
+header{display:flex;align-items:center;gap:.6rem;padding:.8rem 1rem;font-size:1.25rem}
+header i{font-size:1.2rem;cursor:pointer}.spacer{flex:1}
+table{width:100%;border-collapse:collapse;margin-top:.4rem;table-layout:fixed}
+thead{background:var(--orange);color:#000;position:sticky;top:0;z-index:1}
+th,td{padding:.45rem .3rem;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:center}
+tbody tr:not(.row-cash):not(.row-ball):nth-child(odd){background:var(--row1)}
+tbody tr:not(.row-cash):not(.row-ball):nth-child(even){background:var(--row2)}
+.row-cash{background:#403000!important}.row-ball{background:#00385c!important}
+.section{padding:1rem}
+label{display:block;font-size:.85rem;margin:.6rem 0 .25rem}
+.btn-group{display:flex;background:#333;border-radius:8px;overflow:hidden}
+.btn-group button{flex:1;padding:.45rem 0;border:none;font-size:1rem;cursor:pointer;background:#333;color:var(--fg)}
+.btn-group button.active{background:var(--orange);color:#000}
+input,select{width:100%;padding:.6rem .5rem;border:none;border-radius:8px;background:#2d2d2d;color:var(--fg);font-size:1rem}
+.summary{background:var(--purple);border-radius:12px;padding:1rem;line-height:1.6;flex:1 1 190px;min-width:190px;margin-top:1rem}
+.actions{display:flex;gap:.6rem;padding:1rem;position:sticky;bottom:0;background:var(--bg)}
+.actions button{flex:1;padding:.9rem 0;font-size:1.1rem;border:none;border-radius:12px;color:#fff;cursor:pointer}
+#btnCommit{background:var(--orange);color:#000}#btnStart{background:var(--green)}#btnDelete{background:var(--red)}#btnCSV{background:#555}
+#settingsModal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10}
+#settingsBox{background:#222;padding:1.5rem;border-radius:12px;width:90%;max-width:320px}
+#settingsBox h3{margin-top:0;font-size:1.1rem;text-align:center}
+#settingsBox label{margin-top:1rem}
+#settingsBox .buttons{display:flex;gap:.6rem;margin-top:1.4rem}
+#settingsBox button{flex:1;padding:.6rem 0;border:none;border-radius:10px;font-size:1rem;color:#fff;cursor:pointer}
+#saveSet{background:var(--green)}#cancelSet{background:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <i onclick="location.href='machine.html'" class="fa-solid fa-arrow-left"></i>
+  <span>実戦メモ (<span id="pid"></span>)</span><div class="spacer"></div>
+  <i id="btnClear"  class="fa-solid fa-trash"></i>
+  <i id="btnCSV"    class="fa-solid fa-file-arrow-down"></i>
+  <i id="btnSetting" class="fa-solid fa-gear"></i>
+</header>
+
+<table>
+  <thead><tr><th>回転数</th><th>今回</th><th>平均</th><th>投資額</th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<div class="section">
+  <label>遊戯方法</label>
+  <div class="btn-group" id="modeGroup">
+    <button data-mode="cash" class="active">現金</button>
+    <button data-mode="ball">持ち玉</button>
+  </div>
+
+  <label>現在の回転数</label>
+  <input id="spinInput" type="number" min="0" placeholder="0">
+
+  <div class="summary" id="summary">読み込み中...</div>
+</div>
+
+<div class="actions">
+  <button id="btnCommit">決定</button>
+  <button id="btnStart">スタート</button>
+  <button id="btnDelete">一行削除</button>
+</div>
+
+<!-- 設定モーダル（そのまま） -->
+<div id="settingsModal">
+  <div id="settingsBox">
+    <h3>設定</h3>
+    <label>交換比率 (玉/1000円)</label>
+    <select id="rateSelect"><option value="25">25</option><option value="28">28</option></select>
+    <label>ボーダー M (回/1k)</label>
+    <input id="borderInput" type="number" min="0" step="0.1" placeholder="18">
+    <div class="buttons">
+      <button id="saveSet">保存</button>
+      <button id="cancelSet">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 基本変数 */
+const pid=new URLSearchParams(location.search).get('id')||'default';
+document.getElementById('pid').textContent=pid;
+const LS='pachi_'+pid;
+
+let records=[],investStep=0,activeMode='cash';
+let exchangeRate=25,borderM=18;
+
+/* 読込 */
+const saved=JSON.parse(localStorage.getItem(LS)||'null');
+if(saved){
+({records,investStep,exchangeRate,borderM}=saved);
+/* ★ データは無いのに investStep だけ残っているとバグるのでリセット */
+if(!records.length) investStep = 0;
+}
+
+/* DOM */
+const tbody=document.getElementById('tbody'),summary=document.getElementById('summary'),spinInp=document.getElementById('spinInput');
+
+/* モード切替 */
+document.querySelectorAll('#modeGroup button').forEach(b=>{
+  b.onclick=()=>{document.querySelectorAll('#modeGroup button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');activeMode=b.dataset.mode;};
+});
+
+/* 設定モーダル */
+btnSetting.onclick=()=>{rateSelect.value=exchangeRate;borderInput.value=borderM;settingsModal.style.display='flex';};
+cancelSet.onclick=()=>settingsModal.style.display='none';
+saveSet.onclick=()=>{exchangeRate=+rateSelect.value;borderM=+borderInput.value||0;settingsModal.style.display='none';render();};
+
+/* START */
+btnStart.onclick=()=>{
+  const v=+spinInp.value;if(!Number.isFinite(v)){alert('スタート回転数を入力');return;}
+  records.push({spin:v,delta:0,start:true,mode:activeMode,invest:investStep});
+  render();spinInp.value='';
+};
+
+/* 決定 */
+btnCommit.onclick=()=>{
+  if(!records.length){alert('まず START 行を作成');return;}
+  const v=+spinInp.value;if(!Number.isFinite(v)){alert('回転数を入力');return;}
+  const delta=v-records.at(-1).spin;if(delta<=0){alert('前回より大きい値を');return;}
+  investStep+=1000;
+  records.push({spin:v,delta,mode:activeMode,invest:investStep});
+  render();spinInp.value='';
+};
+
+/* 一行削除 */
+btnDelete.onclick=()=>{if(records.length){records.pop();investStep=records.length?records.at(-1).invest:0;render();}};
+btnClear.onclick=()=>{if(confirm('ページを初期化しますか')){records=[];investStep=0;render();}};
+
+/* CSV */
+btnCSV.onclick=()=>{
+  const rows=[['spin','delta','mode','invest']].concat(records.map(r=>[r.spin,r.delta??'',r.mode,r.invest]));
+  const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`${pid}.csv`;a.click();URL.revokeObjectURL(url);
+};
+
+/* ★ 行タップで「回転数・モード」編集 ★ */
+tbody.onclick=e=>{
+  const tr=e.target.closest('tr');if(!tr)return;
+  const idx=[...tbody.children].indexOf(tr);if(idx<0)return;
+  const rec=records[idx];
+
+  /* 1) 回転数編集 */
+  const newSpinStr=prompt('回転数を編集',rec.spin);
+  if(newSpinStr===null) return;
+  const newSpin=+newSpinStr;if(!Number.isFinite(newSpin)){alert('数値を入力');return;}
+
+  /* 2) モード編集：1=現金 2=持ち玉 */
+  const modeStr=prompt('モードを入力: 1=現金 / 2=持ち玉',rec.mode==='cash'?'1':'2');
+  if(modeStr===null) return;
+  const newMode=modeStr==='1'?'cash':'ball';
+
+  rec.spin=newSpin; rec.mode=newMode;
+
+  /* Δを再計算 */
+  for(let i=1;i<records.length;i++){
+    records[i].delta=records[i].spin-records[i-1].spin;
+  }
+  render();
+};
+
+/* 描画 + 保存 */
+function render(){
+  /* 平均列 = 累計平均 */
+  let cum=0,cnt=0;
+  tbody.innerHTML='';
+  records.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    if(!r.start) tr.className=r.mode==='cash'?'row-cash':'row-ball';
+
+    let avg='START';
+    if(!r.start){
+      cnt++; cum+=r.delta; avg=(cum/cnt).toFixed(1);
+    }
+
+    tr.innerHTML=r.start
+      ?`<td>${r.spin}</td><td>---</td><td>${avg}</td><td>${r.invest.toLocaleString()}円</td>`
+      :`<td>${r.spin}</td><td>${r.delta}</td><td>${avg}</td><td>${r.invest.toLocaleString()}円</td>`;
+    tbody.appendChild(tr);
+  });
+
+  /* 期待値等 */
+  const deltas=records.filter(r=>!r.start).map(r=>r.delta);
+  let exB=0,exC=0;
+  if(borderM>0){
+    records.filter(r=>r.mode==='ball'&&!r.start).forEach(r=>{
+      exB+=((r.delta-borderM)/borderM)*25/exchangeRate*1000;});
+    records.filter(r=>r.mode==='cash'&&!r.start).forEach(r=>{
+      exC+=((r.delta-borderM*exchangeRate/25)/borderM)*25/exchangeRate*1000;});
+  }
+  const totalSpin=deltas.reduce((s,v)=>s+v,0),
+        ratio=Math.round(records.filter(r=>r.mode==='ball').length/records.length*100||0);
+  summary.innerHTML=`持ち玉比率：${ratio}%<br>総回転数：${totalSpin}回<br>
+    期待値(持ち玉)：${Math.round(exB).toLocaleString()}円<br>
+    期待値(現金)：${Math.round(exC).toLocaleString()}円`;
+
+  /* 保存 */
+  localStorage.setItem(LS,JSON.stringify({
+    records,investStep,exchangeRate,borderM,totalSpin,
+    exBall:Math.round(exB),exCash:Math.round(exC),updated:Date.now()
+  }));
+}
+render();
+</script>
+</body></html>

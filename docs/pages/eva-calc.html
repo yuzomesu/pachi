@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>パチンコ期待値計算（オーバー入賞補正付き）</title>
+</head>
+<body>
+  <h2>期待出玉・ボーダー・期待値 計算ツール</h2>
+
+  <label>ラウンドベース（k）<input id="k" value="135" /></label><br>
+  <label>オーバー入賞成功率（%）<input id="x" value="50" /></label><br>
+  <label>1kあたりの回転数（y）<input id="y" value="16.5" /></label><br><br>
+
+  <button onclick="calculate()">計算</button>
+
+  <p id="result"></p>
+
+  <script>
+    function calculate() {
+      const baseK = parseFloat(document.getElementById('k').value);
+      const x = parseFloat(document.getElementById('x').value); // over入賞成功率 (%)
+      const y = parseFloat(document.getElementById('y').value);
+
+      const k = baseK + (1.4 * x / 10); // 補正後k
+      const M = (34.4869 * k) / 319.7;
+      const border = 2317.3 / k;
+      const valuePerSpin = ((y * M * 4) - 1000) / y;
+
+      document.getElementById('result').innerHTML =
+        `✅ 補正後のラウンドベース：<strong>${k.toFixed(2)}</strong><br>` +
+        `✅ 1回転あたりの期待出玉 M：<strong>${M.toFixed(2)}</strong> 玉<br>` +
+        `✅ ボーダー：<strong>${border.toFixed(2)}</strong> 回転<br>` +
+        `✅ 1回転あたりの期待値：<strong>${valuePerSpin.toFixed(2)}</strong> 円`;
+    }
+  </script>
+</body>
+<br><br>
+<button onclick="location.href='index.html'">トップに戻る</button>
+
+</html>

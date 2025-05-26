@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>エヴァ15 パチンコシミュレーター</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* === EVA‑inspired palette === */
+    :root{
+      --eva-purple:#5532b8;
+      --eva-green:#8bc34a;
+      --eva-gray:#2c2c2c;
+      --eva-light:#f4f4f4;
+    }
+
+    /* === Base === */
+    body{margin:0;padding:0;font-family:"Segoe UI",Roboto,"Noto Sans JP",Arial,sans-serif;background:var(--eva-light);color:var(--eva-gray);}
+    h2{margin:0 0 12px;text-align:center;color:var(--eva-purple);letter-spacing:1px;}
+
+    .container{max-width:900px;margin:24px auto;padding:28px 32px;background:#fff;border-radius:18px;box-shadow:0 6px 18px rgba(0,0,0,.08);}
+
+    .label{margin:14px 0 4px;font-weight:600;}
+    input[type=number],input[type=range]{width:100%;padding:8px 10px;font-size:15px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box;}
+    input[type=number]:focus,input[type=range]:focus{border-color:var(--eva-purple);outline:none;}
+    input[type=range]{height:6px;background:linear-gradient(90deg,var(--eva-green) 0%,var(--eva-purple) 100%);-webkit-appearance:none;}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--eva-purple);cursor:pointer;box-shadow:0 0 3px rgba(0,0,0,.3);}
+    .slider-val{font-weight:700;color:var(--eva-purple);margin-left:4px;}
+
+    /* === Buttons === */
+    .btn-row{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:24px;}
+    button{background:var(--eva-purple);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:15px;cursor:pointer;
+      box-shadow:0 3px 8px rgba(0,0,0,.12);transition:background .2s,transform .15s;}
+    button:hover{background:var(--eva-green);}
+    button:active{transform:translateY(2px);}
+
+    /* === Stats cards === */
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:24px;}
+    .card{background:var(--eva-light);border-radius:12px;padding:12px;text-align:center;}
+    .card span{display:block;font-size:20px;font-weight:700;color:var(--eva-purple);}
+    .card small{color:#666;}
+
+    /* === Log & chart === */
+    #log{height:180px;overflow-y:auto;background:#fafafa;border-radius:8px;padding:12px;border:1px solid #ddd;font-size:14px;}
+    #chart-wrap{margin-top:30px;}
+
+    @media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);} }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>エヴァ15 パチンコシミュレーター</h2>
+
+    <!-- Inputs -->
+    <label class="label">投資（1000円単位）
+      <input id="money" type="number" value="10">
+    </label>
+    <label class="label">250発あたりの回転数
+      <input id="rotation" type="number" value="16.5" step="0.1">
+    </label>
+    <label class="label">ボーダーベース M
+      <input id="borderM" type="number" value="140" step="1">
+    </label>
+
+    <!-- Speed sliders -->
+    <label class="label">通常回転速度 (<span id="normalVal" class="slider-val">30</span> ms)
+      <input id="normalDelay" type="range" min="10" max="200" value="30" step="5"
+             oninput="normalVal.textContent=this.value">
+    </label>
+    <label class="label">右打ち時短/ST 速度 (<span id="rightVal" class="slider-val">150</span> ms)
+      <input id="rightDelay" type="range" min="10" max="300" value="150" step="10"
+             oninput="rightVal.textContent=this.value">
+    </label>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button onclick="start(true)">▶ 実行（新規）</button>
+      <button onclick="stop()">⏸ 中断</button>
+      <button onclick="start(false)">⏵ 再開</button>
+      <button onclick="reset()">🔄 リセット</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="card"><span id="kaiten">0</span><small>通常累計回転</small></div>
+      <div class="card"><span id="stSpin">0</span><small>ST回転（現行）</small></div>
+      <div class="card"><span id="jitanSpin">0</span><small>時短回転（現行）</small></div>
+      <div class="card"><span id="balls">0</span><small>残り持ち玉</small></div>
+      <div class="card"><span id="atari">0</span><small>当たり回数</small></div>
+      <div class="card"><span id="mode">通常</span><small>状態</small></div>
+      <div class="card"><span id="st">0</span><small>ST残り</small></div>
+      <div class="card"><span id="jitan">0</span><small>時短残り</small></div>
+    </div>
+
+    <!-- Log -->
+    <label class="label" style="margin-top:24px;">履歴</label>
+    <div id="log"></div>
+
+    <!-- Chart -->
+    <div id="chart-wrap">
+      <canvas id="ballsChart" height="220"></canvas>
+    </div>
+  </div>
+
+<script>
+/* ===== State ===== */
+let balls=0,totalNormalSpins=0,atariCnt=0,stSpins=0,jitanSpins=0;
+let mode="NORMAL",stRemaining=0,jitanRemaining=0;
+let costPerSpin=0,pay10=1500,pay3=450;
+let intervalId=null,currentDelay=30;
+
+/* ===== Helpers ===== */
+const nDelay=()=>+normalDelay.value;
+const rDelay=()=>+rightDelay.value;
+const logDiv=document.getElementById("log");
+function log(m){logDiv.innerHTML+=m+"<br>";logDiv.scrollTop=logDiv.scrollHeight;}
+function upd(){kaiten.textContent=totalNormalSpins;stSpin.textContent=stSpins;jitanSpin.textContent=jitanSpins;
+  ballsSpan.textContent=Math.floor(balls);atari.textContent=atariCnt;modeSpan.textContent=mode==="NORMAL"?"通常":mode==="ST"?"ST":"時短";
+  st.textContent=stRemaining;jitan.textContent=jitanRemaining;}
+const ballsSpan=document.getElementById("balls"),modeSpan=document.getElementById("mode");
+
+/* ===== Chart ===== */
+let chart;
+function initChart(){const ctx=document.getElementById("ballsChart").getContext("2d");
+  if(chart)chart.destroy();
+  chart=new Chart(ctx,{type:"line",
+    data:{labels:[],datasets:[{label:"持ち玉",data:[],borderWidth:2,borderColor:getComputedStyle(document.documentElement).getPropertyValue("--eva-purple"),tension:.15,fill:false}]},
+    options:{animation:false,responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:"通常累計回転"}},y:{title:{display:true,text:"持ち玉(発)"}}}}});}
+function addPt(){chart.data.labels.push(totalNormalSpins);chart.data.datasets[0].data.push(Math.floor(balls));chart.update();}
+
+/* ===== Timer ===== */
+function resetTimer(d){if(intervalId)clearInterval(intervalId);currentDelay=d;intervalId=setInterval(spin,currentDelay);}
+
+/* ===== Core ===== */
+function start(newFlg=true){
+  if(intervalId)return;
+  costPerSpin=250/parseFloat(rotation.value);
+  const f=parseFloat(borderM.value)/150;pay10=Math.round(1500*f);pay3=Math.round(450*f);
+  if(newFlg){
+    balls=parseInt(money.value)*250;
+    totalNormalSpins=stSpins=jitanSpins=atariCnt=0;
+    mode="NORMAL";stRemaining=jitanRemaining=0;logDiv.innerHTML="";initChart();addPt();
+  }
+  resetTimer(nDelay());upd();
+}
+function stop(){if(intervalId){clearInterval(intervalId);intervalId=null;log("⏸ 中断しました");}}
+function reset(){stop();balls=0;totalNormalSpins=stSpins=jitanSpins=atariCnt=0;mode="NORMAL";stRemaining=jitanRemaining=0;logDiv.innerHTML="";if(chart)chart.destroy();upd();}
+
+function spin(){
+  const want=(mode==="ST"||mode==="JITAN")?rDelay():nDelay();if(want!==currentDelay)resetTimer(want);
+  switch(mode){
+    case"NORMAL":
+      if(balls<=0){log("💸 玉切れで終了");stop();return;}
+      balls-=costPerSpin;totalNormalSpins++;normalLot();break;
+    case"JITAN":
+      jitanSpins++;jitanRemaining--;normalLot();if(jitanRemaining<=0){mode="NORMAL";log("🔚 時短終了→通常");}break;
+    case"ST":
+      stSpins++;stRemaining--;stLot();if(stRemaining<=0)endST();break;}
+  if(totalNormalSpins%5===0)addPt();upd();
+}
+
+/* ===== Lottery ===== */
+function normalLot(){
+  const n=Math.floor(Math.random()*31970)+1;
+  if(n<=3) hit10(); else if(n<=59) hit3ST(); else if(n<=100) hit3J();
+}
+function stLot(){
+  const n=Math.floor(Math.random()*9940)+1;
+  if(n<=100){balls+=pay10;atariCnt++;log(`🔥 ST中 ${stSpins}回転目 10R確変（${pay10}発）`);addPt();stRemaining=163;stSpins=0;}
+}
+function endST(){
+  let h=false;
+  for(let r=1;r<=4;r++){const n=Math.floor(Math.random()*31970)+1;
+    if(n<=100){balls+=pay10;atariCnt++;log(`⚡ 残保留${r}で当たり！（${pay10}発）`);addPt();stRemaining=163;stSpins=0;h=true;break;}}
+  if(!h){mode="NORMAL";log("🔚 ST終了→通常");}
+}
+
+/* ===== Hits ===== */
+function hit10(){balls+=pay10;atariCnt++;log(`🎯 ${totalNormalSpins}回転目 10R確変（${pay10}発）→ ST`);addPt();mode="ST";stRemaining=163;stSpins=0;}
+function hit3ST(){balls+=pay3;atariCnt++;log(`🔔 ${totalNormalSpins}回転目 3R確変（${pay3}発）→ ST`);addPt();mode="ST";stRemaining=163;stSpins=0;}
+function hit3J(){balls+=pay3;atariCnt++;log(`💡 ${totalNormalSpins}回転目 3R通常（${pay3}発）→ 時短100`);addPt();mode="JITAN";jitanRemaining=104;jitanSpins=0;}
+</script>
+</body>
+</html>
