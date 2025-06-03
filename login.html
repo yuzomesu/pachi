@@ -1,0 +1,25 @@
+<!doctype html><html lang="ja"><head>
+<meta charset="utf-8"><title>ログイン</title>
+<link rel="stylesheet" href="assets/css/theme.css"></head><body>
+<main style="max-width:420px;margin:8rem auto">
+<h1>Login</h1>
+<form id="login">
+<label>メール <input type="email" id="email" required></label>
+<label>パスワード <input type="password" id="pw" required></label>
+<button>ログイン</button>
+</form>
+<p id="err" style="color:var(--loss-red)"></p>
+</main>
+<script type="module">
+import { supabase } from '/assets/js/supabase-init.js';
+document.getElementById('login').onsubmit = async e=>{
+  e.preventDefault();
+  const {error} = await supabase.auth.signInWithPassword({
+    email: login.email.value,
+    password: login.pw.value
+  });
+  if(error) document.getElementById('err').textContent = error.message;
+  else      location.href = '/';          // ログイン後トップへ
+};
+</script>
+</body></html>

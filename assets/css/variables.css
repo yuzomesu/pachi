@@ -1,0 +1,6 @@
+:root{
+  --font-main:'Noto Sans JP',sans-serif;
+  --bg:#121212;        --bg-card:#1e1e1e;
+  --txt:#e0e0e0;       --accent:#00bcd4;
+  --profit-blue:#007bff;   --loss-red:#e53935;
+}
