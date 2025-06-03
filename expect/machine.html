@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>実戦一覧</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --bg:#1a1a1a; --fg:#f8f8f8;
+  --card:#262626; --accent:#ff9800;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:var(--bg);color:var(--fg);padding:1rem}
+header{display:flex;align-items:center;gap:.8rem;margin-bottom:1rem;font-size:1.25rem}
+header i{font-size:1.3rem;cursor:pointer}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
+.card{background:var(--card);border-radius:10px;padding:1rem;cursor:pointer;display:flex;flex-direction:column;gap:.4rem;position:relative}
+.card strong{font-size:1.1rem}
+.card .expect{color:var(--accent);font-weight:600}
+.card .time{font-size:.8rem;color:#aaa}
+.add{display:flex;justify-content:center;align-items:center;font-size:2rem;background:#333;border-radius:10px;color:#888;cursor:pointer}
+/* ★ 削除ボタン */
+.delBtn{
+  position:absolute;top:6px;right:8px;
+  font-size:1.0rem;color:#888;display:none
+}
+.card:hover .delBtn{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <span>実戦セッション一覧</span>
+</header>
+
+<div id="grid">
+  <div id="addCard" class="add"><i class="fa-solid fa-plus"></i></div>
+</div>
+
+<script type="module">
+import { supabase }    from '../assets/js/supabase-init.js';
+import { requireAuth } from '../assets/js/requireAuth.js';
+
+const { id: uid } = await requireAuth();
+const grid    = document.getElementById('grid');
+const addCard = document.getElementById('addCard');
+
+/* -------- データロード（共通） -------- */
+async function loadCards(){
+  /* ★ 初回も再読み込みも完全リフレッシュ */
+  grid.innerHTML = '';
+  grid.appendChild(addCard);
+
+  const { data, error } = await supabase
+    .from('play_sessions')
+    .select('id, title, updated_at, total_spin, ex_ball, ex_cash')
+    .eq('user_id', uid)
+    .order('updated_at', { ascending:false });
+
+  if(error){ console.error(error); return; }
+  data.forEach(row => addSessionCard(row));
+}
+
+/* -------- カード追加 -------- */
+addCard.onclick = async () => {
+  const title = prompt('セッション名 (機種など)');
+  if(!title) return;
+  const { data:row } = await supabase.from('play_sessions')
+    .insert({ user_id:uid, title })
+    .select('id, title, updated_at, total_spin, ex_ball, ex_cash')
+    .single();
+  if(row) loadCards();             // ★ 必ず最新で描き直す
+};
+
+/* -------- カード描画 -------- */
+function addSessionCard(s){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <strong>${s.title||'タイトルなし'}</strong>
+    <div>回転数 ${s.total_spin ?? '―'}</div>
+    <div class="expect">期待値 ${(Number(s.ex_ball)+Number(s.ex_cash)).toLocaleString()} 円</div>
+    <div class="time">${s.updated_at ? new Date(s.updated_at).toLocaleString() : '—'}</div>
+    <i class="fa-solid fa-trash delBtn"></i>             <!-- ★ -->
+  `;
+
+  /* → sim.html へ遷移 */
+  card.addEventListener('click', e=>{
+    if(e.target.classList.contains('delBtn')) return;   // 削除ボタンは除外
+    location.href = `sim.html?sid=${s.id}&id=${s.id}`;
+  });
+
+  /* ★ 削除ボタン */
+  card.querySelector('.delBtn').onclick = async e=>{
+    e.stopPropagation();
+    if(!confirm('このセッションを削除しますか？')) return;
+    const { error } = await supabase.from('play_sessions')
+      .delete().eq('id', s.id);
+    if(error) alert('削除に失敗しました'); else loadCards();
+  };
+
+  grid.appendChild(card);
+}
+
+/* -------- ページ復帰時に最新へ更新 -------- */
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden) loadCards();   // ★ sim.html から戻ったら再ロード
+});
+
+/* 初回ロード */
+loadCards();
+</script>
+</body>
+</html>
