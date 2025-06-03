@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>収支グラフ</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script type="module" src="../assets/js/supabase-init.js"></script>
+<style>
+body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#1a1a1a;color:#f8f8f8}
+header{display:flex;align-items:center;gap:.5rem;padding:.7rem 1rem;font-size:1.2rem;background:#333}
+header a{color:#f8f8f8;text-decoration:none}
+canvas{display:block;width:100%!important;height:calc(100vh - 52px)!important}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="calendar.html"><i class="fa-solid fa-angle-left"></i></a>
+  <span id="title"></span>
+</header>
+<canvas id="chart"></canvas>
+
+<script type="module">
+import { supabase }    from '../assets/js/supabase-init.js';
+import { requireAuth } from '../assets/js/requireAuth.js';
+
+/* 1) 表示年を決定 */
+const yr = new URL(location.href).searchParams.get('year')
+           || new Date().getFullYear();
+title.textContent = `${yr} 年 累積収支 & 期待値`;
+
+/* 2) 認証 */
+const { id: uid } = await requireAuth();
+
+/* 3) v_daily_sum から当年分を取得 */
+const { data, error } = await supabase
+  .from('v_daily_sum')
+  .select('date,balance,ex_total')
+  .eq('user_id', uid)
+  .gte('date', `${yr}-01-01`).lte('date', `${yr}-12-31`)
+  .order('date');
+if(error){ alert('DB エラー'); console.error(error); }
+
+/* 4) 日付 → 累積値へ変換 */
+let cumBal=0, cumEx=0;
+const labels = [], balArr=[], exArr=[];
+data.forEach(d=>{
+  cumBal += Number(d.balance)||0;
+  cumEx  += Number(d.ex_total)||0;
+  labels.push(d.date.slice(5));   // 'MM-DD'
+  balArr .push(cumBal);
+  exArr  .push(cumEx);
+});
+
+/* 5) Chart.js 描画 */
+new Chart(chart.getContext('2d'),{
+  type:'line',
+  data:{
+    labels,
+    datasets:[
+      { label:'累積収支',   data:balArr, borderWidth:2, tension:.2 },
+      { label:'累積期待値', data:exArr, borderWidth:2, tension:.2 }
+    ]
+  },
+  options:{
+    responsive:true,
+    scales:{ x:{ grid:{display:false} } },
+    plugins:{ legend:{labels:{color:'#f8f8f8'} } }
+  }
+});
+</script>
+</body>
+</html>
