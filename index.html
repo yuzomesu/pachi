@@ -1,14 +1,170 @@
-<!DOCTYPE html><html lang="ja"><head>
-<meta charset="utf-8"><title>パチンコ実践補助</title>
-<link rel="stylesheet" href="assets/css/theme.css">
-</head><body>
-<header><h1>パチンコ実践補助</h1></header>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>メインページ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font (Noto Sans JP) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Noto Sans JP', sans-serif; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 flex flex-col items-center justify-center p-4">
+    <header class="text-center mb-10 animate-fade-in">
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 drop-shadow-sm">
+        メインページ
+      </h1>
+      <p class="mt-2 text-gray-500 text-lg">遊技サポートツールへようこそ</p>
+    </header>
 
-<main class="grid cards">
-  <a class="card" href="sim/"><h2>Simulation</h2><p>機種別シミュレーター</p></a>
-  <a class="card" href="ledger/calendar.html"><h2>収支表</h2><p>カレンダー入力と統計</p></a>
-  <a class="card" href="expect/new.html"><h2>期待値計算</h2><p>1K 回転数から計算</p></a>
-</main>
+    <main class="w-full max-w-md space-y-6">
+      <ul class="grid gap-6">
+        <li>
+          <a
+            href="sim.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">シミュレーション</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a
+            href="machine.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">実戦データ入力</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+          <li>
+          <a
+            href="ledger/machine.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">収支データ入力</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+          <li>
+          <a
+            href="machine.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">実戦データ入力</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+          <li>
+          <a
+            href="ledger/stats.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">実践統計</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+      </ul>
+    </main>
 
-<script type="module" src="assets/js/router.js"></script>
-</body></html>
+    <footer class="mt-12 text-sm text-gray-400">
+      &copy; 2025 yuzo All rights reserved.
+    </footer>
+
+    <!-- Simple fade-in animation -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelector('header').classList.add('opacity-0');
+        setTimeout(() => {
+          document.querySelector('header').classList.remove('opacity-0');
+          document.querySelector('header').classList.add('transition', 'duration-700');
+        });
+      });
+    </script>
+  </body>
+</html>
