@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>東京喰種 パチンコシミュレーター</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --tg-purple: #5b3db3;
+      --tg-red: #d32f2f;
+      --tg-gray: #2c2c2c;
+      --tg-light: #f5f5f5;
+    }
+
+    /* ------ ベース ------ */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Roboto, "Noto Sans JP", Arial, sans-serif;
+      background: var(--tg-light);
+      color: var(--tg-gray);
+    }
+    h2 {
+      margin: 0 0 12px;
+      text-align: center;
+      color: var(--tg-red);
+    }
+    .container {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 28px 32px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+    .label {
+      margin: 14px 0 4px;
+      font-weight: 600;
+    }
+
+    /* ------ フォーム ------ */
+    input[type="number"],
+    input[type="range"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+    input[type="number"]:focus,
+    input[type="range"]:focus {
+      border-color: var(--tg-red);
+      outline: none;
+    }
+    input[type="range"] {
+      height: 6px;
+      background: linear-gradient(90deg, var(--tg-purple) 0%, var(--tg-red) 100%);
+      -webkit-appearance: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--tg-red);
+      cursor: pointer;
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+    }
+    .slider-val {
+      font-weight: 700;
+      color: var(--tg-red);
+      margin-left: 4px;
+    }
+
+    /* ------ ボタン ------ */
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    button {
+      background: var(--tg-red);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+      transition: background 0.2s, transform 0.15s;
+    }
+    button:hover {
+      background: var(--tg-purple);
+    }
+    button:active {
+      transform: translateY(2px);
+    }
+
+    /* ------ ステータスカード ------ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+    .card {
+      background: var(--tg-light);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .card span {
+      display: block;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--tg-red);
+    }
+    .card small {
+      color: #666;
+    }
+
+    /* ------ ログ & グラフ ------ */
+    #log {
+      height: 180px;
+      overflow-y: auto;
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+    #chart-wrap {
+      margin-top: 30px;
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>東京喰種 パチンコシミュレーター</h2>
+
+    <!-- パラメータ -->
+    <label class="label"
+      >投資（1000円単位）
+      <input id="money" type="number" value="10"
+    /></label>
+    <label class="label"
+      >250発あたりの回転数
+      <input id="rotation" type="number" value="17.0" step="0.1"
+    /></label>
+    <label class="label"
+      >ボーダーベース&nbsp;M
+      <input id="borderM" type="number" value="140" step="1"
+    /></label>
+
+    <!-- 速度スライダー -->
+    <label class="label"
+      >通常回転速度 (<span id="normalVal" class="slider-val">30</span> ms)
+      <input
+        id="normalDelay"
+        type="range"
+        min="10"
+        max="200"
+        value="30"
+        step="5"
+        oninput="normalVal.textContent=this.value"
+      />
+    </label>
+    <label class="label"
+      >LT中速度 (<span id="ltVal" class="slider-val">150</span> ms)
+      <input
+        id="ltDelay"
+        type="range"
+        min="10"
+        max="300"
+        value="150"
+        step="10"
+        oninput="ltVal.textContent=this.value"
+      />
+    </label>
+
+    <!-- ボタン -->
+    <div class="btn-row">
+      <button onclick="start(true)">▶ 実行（新規）</button>
+      <button onclick="stop()">⏸ 中断</button>
+      <button onclick="start(false)">⏵ 再開</button>
+      <button onclick="reset()">🔄 リセット</button>
+    </div>
+
+    <!-- ステータス -->
+    <div class="stats-grid">
+      <div class="card">
+        <span id="kaiten">0</span><small>通常累計回転</small>
+      </div>
+      <div class="card">
+        <span id="curNorm">0</span><small>通常回転（現行）</small>
+      </div>
+      <div class="card">
+        <span id="ltSpin">0</span><small>LT回転</small>
+      </div>
+      <div class="card">
+        <span id="balls">0</span><small>残り持ち玉</small>
+      </div>
+      <div class="card">
+        <span id="atari">0</span><small>当たり回数</small>
+      </div>
+      <div class="card">
+        <span id="mode">通常</span><small>状態</small>
+      </div>
+      <div class="card">
+        <span id="lt">0</span><small>LT残り</small>
+      </div>
+    </div>
+
+    <!-- ログ -->
+    <label class="label" style="margin-top: 24px">履歴</label>
+    <div id="log"></div>
+
+    <!-- グラフ -->
+    <div id="chart-wrap">
+      <canvas id="ballsChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <script>
+    /* ======= 状態 ======= */
+    let balls = 0,
+      totalNorm = 0,
+      curNorm = 0,
+      atariCnt = 0,
+      ltSpins = 0;
+    let mode = "NORMAL",
+      ltRemaining = 0;
+    let costPerSpin = 0;
+    let pay1500 = 1500,
+      pay300 = 300,
+      pay3000 = 3000,
+      pay6000 = 6000;
+    let intervalId = null,
+      currentDelay = 30;
+
+    /* ======= ヘルパ ======= */
+    const nDelay = () => +normalDelay.value,
+      lDelay = () => +ltDelay.value;
+    const logDiv = document.getElementById("log");
+    function log(msg) {
+      logDiv.innerHTML += msg + "<br>";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function upd() {
+      kaiten.textContent = totalNorm;
+      curNorm.textContent = curNorm;
+      ltSpin.textContent = ltSpins;
+      ballsSpan.textContent = Math.floor(balls);
+      atari.textContent = atariCnt;
+      modeSpan.textContent = mode === "NORMAL" ? "通常" : "LT";
+      lt.textContent = ltRemaining;
+    }
+    const ballsSpan = document.getElementById("balls"),
+      modeSpan = document.getElementById("mode");
+
+    /* ======= グラフ ======= */
+    let chart;
+    function initChart() {
+      const ctx = document.getElementById("ballsChart").getContext("2d");
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "持ち玉",
+              data: [],
+              borderWidth: 2,
+              borderColor: getComputedStyle(
+                document.documentElement
+              ).getPropertyValue("--tg-red"),
+              tension: 0.15,
+              fill: false,
+            },
+          ],
+        },
+        options: {
+          animation: false,
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: "通常累計回転" } },
+            y: { title: { display: true, text: "持ち玉(発)" } },
+          },
+        },
+      });
+    }
+    function addPt() {
+      chart.data.labels.push(totalNorm);
+      chart.data.datasets[0].data.push(Math.floor(balls));
+      chart.update();
+    }
+
+    /* ======= タイマー ======= */
+    function timer(d) {
+      if (intervalId) clearInterval(intervalId);
+      currentDelay = d;
+      intervalId = setInterval(spin, currentDelay);
+    }
+
+    /* ======= 開始・リセット ======= */
+    function start(newGame = true) {
+      if (intervalId) return;
+      costPerSpin = 250 / parseFloat(rotation.value);
+      const f = parseFloat(borderM.value) / 150;
+      pay1500 = Math.round(1500 * f);
+      pay300 = Math.round(300 * f);
+      pay3000 = Math.round(3000 * f);
+      pay6000 = Math.round(6000 * f);
+
+      if (newGame) {
+        balls = parseInt(money.value) * 250;
+        totalNorm = curNorm = ltSpins = atariCnt = 0;
+        mode = "NORMAL";
+        ltRemaining = 0;
+        logDiv.innerHTML = "";
+        initChart();
+        addPt();
+      }
+      timer(nDelay());
+      upd();
+    }
+    function stop() {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+        log("⏸ 中断");
+      }
+    }
+    function reset() {
+      stop();
+      balls = 0;
+      totalNorm = curNorm = ltSpins = atariCnt = 0;
+      mode = "NORMAL";
+      ltRemaining = 0;
+      logDiv.innerHTML = "";
+      if (chart) chart.destroy();
+      upd();
+    }
+
+    /* ======= 1スピン ======= */
+    function spin() {
+      const want = mode === "LT" ? lDelay() : nDelay();
+      if (want !== currentDelay) timer(want);
+
+      if (mode === "NORMAL") {
+        if (balls <= 0) {
+          log("💸 玉切れ");
+          stop();
+          return;
+        }
+        balls -= costPerSpin;
+        totalNorm++;
+        curNorm++;
+        lotNormal();
+        addPt(); // 通常時は毎回更新
+      } else {
+        ltSpins++;
+        ltRemaining--;
+        lotLT();
+        if (ltRemaining <= 0) {
+          mode = "NORMAL";
+          log("🔚 LT終了→通常");
+          curNorm = 0;
+        }
+      }
+      upd();
+    }
+
+    /* ======= 通常抽選 ======= */
+    function lotNormal() {
+      // 1/199.9
+      const n = Math.floor(Math.random() * 19990) + 1;
+      if (n <= 25) {
+        // 25% LT1500
+        balls += pay1500;
+        atariCnt++;
+        log(`🎯 ${curNorm}回転 LT当たり1500発`);
+        curNorm = 0
+        addPt();
+        startLT();
+      } else if (n <= 49.5) {
+        // 24.5% 通常1500
+        balls += pay1500;
+        atariCnt++;
+        log(`🔔 ${curNorm}回転 通常1500発`);
+        curNorm = 0
+        addPt();
+      } else if (n <=50) {
+        // 0.5% LT300
+        balls += pay300;
+        atariCnt++;
+        log(`🎯 ${curNorm}回転 LT当たり300発`);
+        curNorm = 0
+        addPt();
+        startLT();
+      } else if (n <=100){
+        // 50% 通常300
+        balls += pay300;
+        atariCnt++;
+        log(`💡 ${curNorm}回転 通常300発`);
+        curNorm = 0
+        addPt();
+      }
+    }
+
+    /* ======= LT突入 ======= */
+    function startLT() {
+      mode = "LT";
+      ltRemaining = 130;
+      ltSpins = 0;
+      curNorm = 0;
+    }
+
+    /* ======= LT抽選 ======= */
+    function lotLT() {
+      const n = Math.floor(Math.random() * 9530) + 1; // 1/95.3
+      if (n <= 97) {
+        // 当たり
+        payout = pay3000;
+        balls += payout;
+        atariCnt++;
+        log(`🔥 LT中 ${ltSpins}回転 3000発当たり`);
+        addPt();
+        ltRemaining = 130; // 継続
+        ltSpins = 0;
+      }
+      else if (n<=100) {
+         // 当たり
+        payout = pay6000;
+        balls += payout;
+        atariCnt++;
+        log(`🔥 LT中 ${ltSpins}回転 6000発当たり`);
+        addPt();
+        ltRemaining = 130; // 継続
+        ltSpins = 0;
+      }
+    }
+  </script>
+</body>
+</html>

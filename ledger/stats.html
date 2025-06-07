@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>分析サマリ</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;
+     background:#1a1a1a;color:#f8f8f8}
+header{display:flex;align-items:center;gap:.6rem;
+       background:#333;padding:.8rem 1rem;font-size:1.2rem}
+header a,header button{color:#f8f8f8;background:none;border:none;
+       font-size:1.2rem;cursor:pointer}
+header span{flex:1}               /* タイトル中央寄せ */
+section{padding:1rem}
+h2{font-size:1rem;margin:.6rem 0}
+table{width:100%;border-collapse:collapse}
+th,td{padding:.38rem .3rem;font-size:.9rem;text-align:right}
+th{background:#444;color:#ff9800}
+tr:nth-child(odd){background:#2b2b2b}
+.pos{color:#00c853}.neg{color:#ff5252}
+.summary{display:flex;flex-wrap:wrap;gap:1rem;margin:.8rem 0}
+.card{flex:1 1 180px;background:#2b2b2b;padding:.8rem;border-radius:8px}
+.card h3{margin:0 0 .3rem;font-size:.88rem;font-weight:500}
+input[type=date]{background:#444;border:none;color:#fff;padding:.4rem;border-radius:6px}
+#filterBar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.6rem 0}
+#filterBar button{padding:.45rem 1rem;border:none;border-radius:6px;background:#ff9800;color:#000;cursor:pointer}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="calendar.html"><i class="fa-solid fa-angle-left"></i></a>
+  <span>分析サマリ</span>
+
+  <!-- ★ 右端：グラフページへ -->
+  <button onclick="location.href='plot.html?year='+new Date().getFullYear()">
+    <i class="fa-solid fa-chart-line"></i>
+  </button>
+</header>
+
+<section id="filterBar">
+  <span>期間:</span>
+  <input type="date" id="from">
+  <span>〜</span>
+  <input type="date" id="to">
+  <button id="btnApply">適用</button>
+  <button id="btnAll">全期間</button>
+  <button id="btnThisYear">今年</button>
+</section>
+
+<section>
+  <div class="summary" id="sumCards"></div>
+</section>
+
+<section>
+  <h2>月別集計</h2>
+  <table id="tblMonth"><thead>
+    <tr><th>月</th><th>実収支合計</th><th>期待値合計</th><th>差分</th>
+        <th>実収支平均</th><th>期待値平均</th></tr>
+  </thead><tbody></tbody></table>
+</section>
+
+<script type="module" src="../assets/js/supabase-init.js"></script>
+<script type="module">
+import { supabase }    from '../assets/js/supabase-init.js';
+import { requireAuth } from '../assets/js/requireAuth.js';
+
+const { id: uid } = await requireAuth();
+
+/* すべての日次データを一度だけ取得 */
+const { data: allData, error } = await supabase
+  .from('v_daily_sum')
+  .select('date,balance,ex_total')
+  .eq('user_id', uid)
+  .order('date');
+if(error){ alert('DB エラー'); console.error(error); }
+
+const rows = allData || [];
+if(!rows.length){
+  document.body.insertAdjacentHTML('beforeend','<p style="padding:1rem">データがありません</p>');
+}
+
+/* 期間フィルタ初期値 */
+const minDate = rows[0]?.date;
+const maxDate = rows.at(-1)?.date;
+from.value = minDate;
+to.value   = maxDate;
+
+/* ボタン操作 */
+btnApply.onclick   = ()=>refresh(from.value,to.value);
+btnAll.onclick     = ()=>{from.value=minDate;to.value=maxDate;refresh(minDate,maxDate);}
+btnThisYear.onclick= ()=>{
+  const y=new Date().getFullYear();
+  const st=`${y}-01-01`,ed=`${y}-12-31`;
+  from.value=st;to.value=ed;refresh(st,ed);
+};
+
+/* 初回描画 */
+if(rows.length) refresh(minDate,maxDate);
+
+/* ── 関数群 ─────────────────────── */
+function refresh(dFrom,dTo){
+  const sel = rows.filter(r=>r.date>=dFrom && r.date<=dTo);
+  if(!sel.length){ alert('該当データ無し'); return; }
+
+  const total  = calcSummary(sel);
+  const thisYr = calcSummary(sel.filter(r=>r.date.startsWith(String(new Date().getFullYear()))));
+
+  renderCards(total,thisYr);
+  renderMonthly(sel);
+}
+
+function calcSummary(arr){
+  const days=arr.length;
+  const sumP=arr.reduce((s,v)=>s+Number(v.balance),0);
+  const sumE=arr.reduce((s,v)=>s+Number(v.ex_total),0);
+  return{
+    profitSum:sumP,
+    expectSum:sumE,
+    diff     :sumP-sumE,
+    profitAvg:sumP/days,
+    expectAvg:sumE/days
+  };
+}
+function renderCards(total,thisYr){
+  const card=(title,o)=>`
+    <div class="card">
+      <h3>${title}</h3>
+      合計収支：${fmt(o.profitSum)}<br>
+      平均収支：${fmt(o.profitAvg)}<br>
+      合計期待：${fmt(o.expectSum)}<br>
+      平均期待：${fmt(o.expectAvg)}<br>
+      差分　　：<span class="${o.diff>=0?'pos':'neg'}">${fmt(o.diff,true)}</span>
+    </div>`;
+  sumCards.innerHTML=card('全期間',total)+card('今年',thisYr);
+}
+function renderMonthly(arr){
+  const map=new Map();
+  arr.forEach(r=>{
+    const ym=r.date.slice(0,7);
+    const m=map.get(ym)||{p:0,e:0,c:0};
+    m.p+=Number(r.balance);m.e+=Number(r.ex_total);m.c++;
+    map.set(ym,m);
+  });
+  const tb=document.querySelector('#tblMonth tbody');
+  tb.innerHTML='';
+  [...map.entries()].sort().forEach(([ym,o])=>{
+    const diff=o.p-o.e;
+    tb.insertAdjacentHTML('beforeend',`
+      <tr>
+        <td style="text-align:center">${ym}</td>
+        <td class="${diff>=0?'pos':'neg'}">${fmt(o.p)}</td>
+        <td>${fmt(o.e)}</td>
+        <td class="${diff>=0?'pos':'neg'}">${fmt(diff,true)}</td>
+        <td>${fmt(o.p/o.c)}</td>
+        <td>${fmt(o.e/o.c)}</td>
+      </tr>`);
+  });
+}
+function fmt(n,sign=false){
+  const v=Math.round(n);
+  return (sign&&v>0?'+':'')+v.toLocaleString();
+}
+</script>
+</body>
+</html>

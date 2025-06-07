@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>エヴァ15 パチンコシミュレーター – 新スペック</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --eva-purple: #5532b8;
+      --eva-green: #8bc34a;
+      --eva-gray: #2c2c2c;
+      --eva-light: #f4f4f4;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Roboto, "Noto Sans JP", Arial, sans-serif;
+      background: var(--eva-light);
+      color: var(--eva-gray);
+    }
+    h2 {
+      margin: 0 0 12px;
+      text-align: center;
+      color: var(--eva-purple);
+      letter-spacing: 1px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 28px 32px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+    .label {
+      margin: 14px 0 4px;
+      font-weight: 600;
+      display: block;
+    }
+    input[type="number"],
+    input[type="range"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+    input[type="number"]:focus,
+    input[type="range"]:focus {
+      border-color: var(--eva-purple);
+      outline: none;
+    }
+    input[type="range"] {
+      height: 6px;
+      background: linear-gradient(
+        90deg,
+        var(--eva-green) 0%,
+        var(--eva-purple) 100%
+      );
+      -webkit-appearance: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid var(--eva-purple);
+      cursor: pointer;
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+    }
+    .slider-val {
+      font-weight: 700;
+      color: var(--eva-purple);
+      margin-left: 4px;
+    }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    button {
+      background: var(--eva-purple);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+      transition: background 0.2s, transform 0.15s;
+    }
+    button:hover {
+      background: var(--eva-green);
+    }
+    button:active {
+      transform: translateY(2px);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+    .card {
+      background: var(--eva-light);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .card span {
+      display: block;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--eva-purple);
+    }
+    .card small {
+      color: #666;
+    }
+    #log {
+      height: 180px;
+      overflow-y: auto;
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>
+      エヴァ15 パチンコシミュレーター
+      <small style="font-size: 14px; color: #666">– 新スペック</small>
+    </h2>
+
+    <!-- Inputs -->
+    <label class="label"
+      >投資（1000円単位）
+      <input id="money" type="number" value="10" />
+    </label>
+    <label class="label"
+      >250発あたりの回転数
+      <input id="rotation" type="number" value="16.5" step="0.1" />
+    </label>
+    <label class="label"
+      >ボーダーベース M
+      <input id="borderM" type="number" value="140" step="1" />
+    </label>
+
+    <!-- Speed sliders -->
+    <label class="label"
+      >通常回転速度 (<span id="normalVal" class="slider-val">30</span> ms)
+      <input
+        id="normalDelay"
+        type="range"
+        min="10"
+        max="200"
+        value="30"
+        step="5"
+        oninput="normalVal.textContent=this.value"
+      />
+    </label>
+    <label class="label"
+      >右打ちRUSH/時短/RLC 速度
+      (<span id="rightVal" class="slider-val">150</span> ms)
+      <input
+        id="rightDelay"
+        type="range"
+        min="10"
+        max="300"
+        value="150"
+        step="10"
+        oninput="rightVal.textContent=this.value"
+      />
+    </label>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button onclick="start(true)">▶ 実行（新規）</button>
+      <button onclick="stop()">⏸ 中断</button>
+      <button onclick="start(false)">⏵ 再開</button>
+      <button onclick="reset()">🔄 リセット</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="card">
+        <span id="currentSpin">0</span><small>現在回転数</small>
+      </div>
+      <div class="card">
+        <span id="rushSpin">0</span><small>RUSH回転（現行）</small>
+      </div>
+      <div class="card">
+        <span id="jitanSpin">0</span><small>時短回転（現行）</small>
+      </div>
+      <div class="card">
+        <span id="rlcSpin">0</span><small>RLC回転（現行）</small>
+      </div>
+      <div class="card">
+        <span id="balls">0</span><small>残り持ち玉</small>
+      </div>
+      <div class="card">
+        <span id="atari">0</span><small>当たり回数</small>
+      </div>
+      <div class="card">
+        <span id="mode">通常</span><small>状態</small>
+      </div>
+      <div class="card">
+        <span id="rush">0</span><small>RUSH残り</small>
+      </div>
+      <div class="card">
+        <span id="jitan">0</span><small>時短残り</small>
+      </div>
+      <div class="card">
+        <span id="rlc">0</span><small>RLC残り</small>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <label class="label" style="margin-top: 24px">履歴</label>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    /********************
+     *   CONFIG VALUES  *
+     ********************/
+    const PROB_NORMAL = 1 / 319.9;
+    const PROB_RUSH = 1 / 97.7;
+    const LOOPS_RUSH = 159;
+    const LOOPS_JITAN = 104;
+    const LOOPS_RLC = 115;
+
+    /********************
+     *   STATE VARS     *
+     ********************/
+    let balls = 0,
+      totalSpins = 0,
+      spinsSinceLastHit = 0,
+      atariCnt = 0;
+    let rushSpins = 0,
+      jitanSpins = 0,
+      rlcSpins = 0;
+    let mode = "NORMAL",
+      rushRemaining = 0,
+      jitanRemaining = 0,
+      rlcRemaining = 0;
+    let costPerSpin = 0,
+      pay450 = 450,
+      pay1500 = 1500;
+    let intervalId = null,
+      currentDelay = 30;
+
+    /********************
+     *   DOM SHORTCUTS  *
+     ********************/
+    const logDiv = document.getElementById("log");
+    const currentSpinSpan = document.getElementById("currentSpin");
+    const rushSpinSpan = document.getElementById("rushSpin");
+    const jitanSpinSpan = document.getElementById("jitanSpin");
+    const rlcSpinSpan = document.getElementById("rlcSpin");
+    const ballsSpan = document.getElementById("balls");
+    const atariSpan = document.getElementById("atari");
+    const modeSpan = document.getElementById("mode");
+    const rushRemainSpan = document.getElementById("rush");
+    const jitanRemainSpan = document.getElementById("jitan");
+    const rlcRemainSpan = document.getElementById("rlc");
+    const nDelay = () => +normalDelay.value;
+    const rDelay = () => +rightDelay.value;
+
+    /********************
+     *   HELPERS        *
+     ********************/
+    function log(m) {
+      logDiv.innerHTML += m + "<br>";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    function upd() {
+      currentSpinSpan.textContent = spinsSinceLastHit;
+      rushSpinSpan.textContent = rushSpins;
+      jitanSpinSpan.textContent = jitanSpins;
+      rlcSpinSpan.textContent = rlcSpins;
+      ballsSpan.textContent = Math.floor(balls);
+      atariSpan.textContent = atariCnt;
+      const modeJP = {
+        NORMAL: "通常",
+        RUSH: "RUSH",
+        JITAN: "時短",
+        RLC: "RLC",
+      };
+      modeSpan.textContent = modeJP[mode];
+      rushRemainSpan.textContent = rushRemaining;
+      jitanRemainSpan.textContent = jitanRemaining;
+      rlcRemainSpan.textContent = rlcRemaining;
+    }
+
+    /********************
+     *   TIMER UTILS    *
+     ********************/
+    function resetTimer(d) {
+      if (intervalId) clearInterval(intervalId);
+      currentDelay = d;
+      intervalId = setInterval(spin, currentDelay);
+    }
+
+    /********************
+     *   GAME CONTROL   *
+     ********************/
+    function start(newFlg = true) {
+      if (intervalId) return;
+      costPerSpin = 250 / parseFloat(rotation.value);
+      const f = parseFloat(borderM.value) / 150;
+      pay450 = Math.round(450 * f);
+      pay1500 = Math.round(1500 * f);
+      if (newFlg) {
+        balls = parseInt(money.value) * 250;
+        totalSpins = spinsSinceLastHit = atariCnt = 0;
+        rushSpins = jitanSpins = rlcSpins = 0;
+        mode = "NORMAL";
+        rushRemaining = jitanRemaining = rlcRemaining = 0;
+        logDiv.innerHTML = "";
+      }
+      resetTimer(nDelay());
+      upd();
+    }
+    function stop() {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+        log("⏸ 中断しました");
+      }
+    }
+    function reset() {
+      stop();
+      balls = 0;
+      totalSpins = spinsSinceLastHit = atariCnt = 0;
+      rushSpins = jitanSpins = rlcSpins = 0;
+      mode = "NORMAL";
+      rushRemaining = jitanRemaining = rlcRemaining = 0;
+      logDiv.innerHTML = "";
+      upd();
+    }
+
+    /********************
+     *      LOOP        *
+     ********************/
+    function spin() {
+      const want = mode !== "NORMAL" ? rDelay() : nDelay();
+      if (want !== currentDelay) resetTimer(want);
+
+      spinsSinceLastHit++;
+      totalSpins++;
+
+      switch (mode) {
+        case "NORMAL":
+          if (balls <= 0) {
+            log("💸 玉切れで終了");
+            stop();
+            return;
+          }
+          balls -= costPerSpin;
+          normalLot();
+          break;
+        case "JITAN":
+          jitanSpins++;
+          jitanRemaining--;
+          jitanLot();
+          if (jitanRemaining <= 0) endJitan();
+          break;
+        case "RUSH":
+          rushSpins++;
+          rushRemaining--;
+          rushLot();
+          if (rushRemaining <= 0) endRush();
+          break;
+        case "RLC":
+          rlcSpins++;
+          rlcRemaining--;
+          rlcLot();
+          if (rlcRemaining <= 0) endRLC();
+          break;
+      }
+      upd();
+    }
+
+    /********************
+     *       LOTTERIES  *
+     ********************/
+    function normalLot() {
+      if (Math.random() < PROB_NORMAL) {
+        const isRush = Math.random() < 0.5;
+        balls += pay450;
+        atariCnt++;
+        const msgHead = `🎯 ${spinsSinceLastHit}回転で当たり`;
+        if (isRush) {
+          log(`${msgHead} 3R+RUSH（${pay450}発）`);
+          mode = "RUSH";
+          rushRemaining = LOOPS_RUSH;
+          rushSpins = 0;
+        } else {
+          log(`${msgHead} 3R+時短（${pay450}発）`);
+          mode = "JITAN";
+          jitanRemaining = LOOPS_JITAN;
+          jitanSpins = 0;
+        }
+        spinsSinceLastHit = 0;
+      }
+    }
+    function jitanLot() {
+      if (Math.random() < PROB_NORMAL) {
+        balls += pay1500;
+        atariCnt++;
+        log(`🔥 ${spinsSinceLastHit}回転で当たり 1500発→RUSH`);
+        mode = "RUSH";
+        rushRemaining = LOOPS_RUSH;
+        rushSpins = 0;
+        spinsSinceLastHit = 0;
+      }
+    }
+    function rushLot() {
+      if (Math.random() < PROB_RUSH) {
+        balls += pay1500;
+        atariCnt++;
+        log(`⚡ ${spinsSinceLastHit}回転で当たり 1500発（RUSH継続）`);
+        rushRemaining = LOOPS_RUSH;
+        rushSpins = 0;
+        spinsSinceLastHit = 0;
+      }
+    }
+    function rlcLot() {
+      if (Math.random() < PROB_NORMAL) {
+        balls += pay1500;
+        atariCnt++;
+        log(`🚀 ${spinsSinceLastHit}回転で当たり 1500発→RUSH`);
+        mode = "RUSH";
+        rushRemaining = LOOPS_RUSH;
+        rushSpins = 0;
+        spinsSinceLastHit = 0;
+      }
+    }
+
+    /********************
+     *    END HANDLERS  *
+     ********************/
+    function endJitan() {
+      if (Math.random() < 0.029) {
+        mode = "RLC";
+        rlcRemaining = LOOPS_RLC;
+        rlcSpins = 0;
+        log("➡ 時短終了→RLCへ");
+      } else {
+        mode = "NORMAL";
+        log("🔚 時短終了→通常");
+      }
+    }
+    function endRush() {
+      if (Math.random() < 1 / 3) {
+        mode = "RLC";
+        rlcRemaining = LOOPS_RLC;
+        rlcSpins = 0;
+        log("➡ RUSH終了→RLCへ");
+      } else {
+        mode = "NORMAL";
+        log("🔚 RUSH終了→通常");
+      }
+    }
+    function endRLC() {
+      if (Math.random() < 0.029) {
+        rlcRemaining = LOOPS_RLC;
+        rlcSpins = 0;
+        log("🔄 RLC継続（2.9%）");
+      } else {
+        mode = "NORMAL";
+        log("🔚 RLC終了→通常");
+      }
+    }
+  </script>
+</body>
+</html>

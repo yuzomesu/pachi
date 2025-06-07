@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>収支グラフ</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script type="module" src="../assets/js/supabase-init.js"></script>
+<style>
+body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#1a1a1a;color:#f8f8f8}
+header{display:flex;align-items:center;gap:.5rem;background:#333;padding:.7rem 1rem;font-size:1.2rem}
+header a{color:#f8f8f8;text-decoration:none}
+header span{flex:1;text-align:center}
+#filterBar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;background:#2b2b2b;padding:.6rem 1rem}
+input[type=date]{background:#444;border:none;color:#fff;padding:.4rem;border-radius:6px}
+#filterBar button{padding:.45rem 1rem;border:none;border-radius:6px;background:#ff9800;color:#000;cursor:pointer}
+canvas{display:block;width:100%!important;height:calc(100vh - 116px)!important}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="calendar.html"><i class="fa-solid fa-angle-left"></i></a>
+  <span id="title">収支グラフ</span>
+</header>
+
+<div id="filterBar">
+  <span>期間:</span>
+  <input type="date" id="from">
+  <span>〜</span>
+  <input type="date" id="to">
+  <button id="btnApply">適用</button>
+  <button id="btnAll">全期間</button>
+  <button id="btnThisYear">今年</button>
+</div>
+
+<canvas id="chart"></canvas>
+
+<script type="module">
+import { supabase }    from '../assets/js/supabase-init.js';
+import { requireAuth } from '../assets/js/requireAuth.js';
+
+/* 認証 */
+const { id: uid } = await requireAuth();
+
+/* 全期間データを一度だけ取得 */
+const { data: allRows, error } = await supabase
+  .from('v_daily_sum')
+  .select('date,balance,ex_total')
+  .eq('user_id', uid)
+  .order('date');
+if(error){ alert('DB エラー'); console.error(error); }
+
+const rows = allRows || [];
+if(!rows.length){ document.body.insertAdjacentHTML('beforeend','<p style="padding:1rem">データがありません</p>'); }
+
+const minDate = rows[0]?.date;
+const maxDate = rows.at(-1)?.date;
+
+/* フィルター UI 初期値 */
+from.value = minDate;
+to.value   = maxDate;
+
+/* ボタン挙動 */
+btnApply.onclick   = ()=>draw(from.value,to.value);
+btnAll.onclick     = ()=>{from.value=minDate;to.value=maxDate;draw(minDate,maxDate);}
+btnThisYear.onclick= ()=>{
+  const y = new Date().getFullYear();
+  const st = `${y}-01-01`, ed = `${y}-12-31`;
+  from.value=st; to.value=ed; draw(st,ed);
+};
+
+/* Chart.js インスタンス保持用 */
+let chartObj=null;
+
+/* 初回描画（全期間） */
+if(rows.length) draw(minDate,maxDate);
+
+/* ─────────── 関数 ─────────── */
+function draw(dFrom,dTo){
+  const sel = rows.filter(r=>r.date>=dFrom && r.date<=dTo);
+  if(!sel.length){ alert('該当データ無し'); return; }
+
+  let cumBal=0, cumEx=0;
+  const labels=[], balArr=[], exArr=[];
+  sel.forEach(r=>{
+    cumBal += Number(r.balance)||0;
+    cumEx  += Number(r.ex_total)||0;
+    labels .push(r.date.slice(5));      // 'MM-DD'
+    balArr .push(cumBal);
+    exArr  .push(cumEx);
+  });
+
+  /* タイトル更新 */
+  title.textContent =
+    `${dFrom} 〜 ${dTo} 累積収支 & 期待値`;
+
+  /* 既存グラフを破棄して再描画 */
+  if(chartObj) chartObj.destroy();
+  chartObj = new Chart(document.getElementById('chart').getContext('2d'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'累積収支',   data:balArr, borderWidth:2, tension:.2 },
+        { label:'累積期待値', data:exArr, borderWidth:2, tension:.2 }
+      ]
+    },
+    options:{
+      responsive:true,
+      scales:{ x:{ grid:{display:false} } },
+      plugins:{ legend:{labels:{color:'#f8f8f8'} } }
+    }
+  });
+}
+</script>
+</body>
+</html>
