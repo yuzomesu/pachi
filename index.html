@@ -1,30 +1,49 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>メインページ</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Font (Noto Sans JP) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-      body { font-family: 'Noto Sans JP', sans-serif; }
-    </style>
-  </head>
-  <body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 flex flex-col items-center justify-center p-4">
-    <header class="text-center mb-10 animate-fade-in">
-      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 drop-shadow-sm">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>メインページ</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style> body{font-family:'Noto Sans JP',sans-serif;} </style>
+
+  <!-- Supabase Client & キー（置換済みならそのまま） -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    window.supabase = createClient('__SUPABASE_URL__', '__SUPABASE_ANON__');
+  </script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 flex flex-col items-center p-4">
+
+  <!-- ── Header ─────────────────────────────── -->
+  <header class="w-full max-w-4xl mb-10 flex items-center justify-between animate-fade-in">
+    <div class="text-center flex-1">
+      <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 drop-shadow-sm">
         メインページ
       </h1>
-      <p class="mt-2 text-gray-500 text-lg">遊技サポートツールへようこそ</p>
-    </header>
+      <p class="mt-2 text-gray-500 text-base">遊技サポートツールへようこそ</p>
+    </div>
 
-    <main class="w-full max-w-md space-y-6">
-      <ul class="grid gap-6">
-        <li>
+    <!-- ▼ Login / Logout ボタン -->
+    <button id="authBtn"
+            class="whitespace-nowrap ml-4 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow-md
+                   hover:bg-indigo-700 transition disabled:opacity-50">
+      ログイン
+    </button>
+  </header>
+
+  <!-- ── Main Links ─────────────────────────── -->
+  <main class="w-full max-w-md space-y-6">
+    <ul class="grid gap-6">
+      <!-- 既存リンク（省略なし） -->
+       <li>
           <a
             href="sim/index.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -76,7 +95,7 @@
         </li>
           <li>
           <a
-            href="ledger/calendar.html"
+            href="ledger/caledndar.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
           >
             <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
@@ -124,22 +143,45 @@
             </div>
           </a>
         </li>
-      </ul>
-    </main>
+    </ul>
+  </main>
 
-    <footer class="mt-12 text-sm text-gray-400">
-      &copy; 2025 yuzo All rights reserved.
-    </footer>
+  <footer class="mt-12 text-sm text-gray-400">
+    &copy; 2025 yuzo All rights reserved.
+  </footer>
 
-    <!-- Simple fade-in animation -->
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        document.querySelector('header').classList.add('opacity-0');
-        setTimeout(() => {
-          document.querySelector('header').classList.remove('opacity-0');
-          document.querySelector('header').classList.add('transition', 'duration-700');
-        });
-      });
-    </script>
-  </body>
+  <!-- ── Login / Logout ロジック ─────────────── -->
+  <script type="module">
+    import { supabase } from './assets/js/supabase-init.js';  // 既存の init を再利用
+
+    const btn = document.getElementById('authBtn');
+
+    /* 認証状態を取得してボタンを書き換え */
+    const { data:{ user } } = await supabase.auth.getUser();
+    updateBtn(!!user);
+
+    /* ボタンクリック */
+    btn.onclick = async () => {
+      btn.disabled = true;
+
+      if (btn.dataset.mode === 'login') {
+        // ★ 例：メールMagicLinkに飛ばす場合
+        location.href = 'login.html';
+      } else {
+        await supabase.auth.signOut();
+        location.reload();
+      }
+    };
+
+    function updateBtn(isLogin){
+      if(isLogin){
+        btn.textContent = 'ログアウト';
+        btn.dataset.mode = 'logout';
+      }else{
+        btn.textContent = 'ログイン';
+        btn.dataset.mode = 'login';
+      }
+    }
+  </script>
+</body>
 </html>
