@@ -11,7 +11,7 @@
 <p id="err" style="color:var(--loss-red)"></p>
 </main>
 <script type="module">
-import { supabase } from 'supabase-init.js';
+import { supabase } from '/supabase-init.js';
 document.getElementById('login').onsubmit = async e=>{
   e.preventDefault();
   const {error} = await supabase.auth.signInWithPassword({
