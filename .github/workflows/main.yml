@@ -13,14 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Secrets を supabase-init.js に書き込む（置換）
       - name: Inject Supabase secrets
         run: |
+          echo "[置換開始] supabase-init.js の中身を変更します"
           find . -type f -name "supabase-init.js" -print0 \
             | xargs -0 sed -i \
             -e "s#__SUPABASE_URL__#${{ secrets.SUPABASE_URL }}#g" \
             -e "s#__SUPABASE_ANON__#${{ secrets.SUPABASE_ANON }}#g"
+      
+          echo "✅ Supabase キーを置換しました（完了）"
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
