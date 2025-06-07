@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>オリジナルスペック シミュレーター</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{--red:#d32f2f;--purple:#5b3db3;--gray:#2c2c2c;--light:#f5f5f5;}
+  body{margin:0;padding:0;font-family:"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:var(--light);color:var(--gray);}
+  h2{text-align:center;margin:0 0 16px;color:var(--red);}
+  .container{max-width:900px;margin:24px auto;background:#fff;padding:28px 32px;border-radius:18px;box-shadow:0 6px 18px rgba(0,0,0,.08);}
+  label{display:block;margin-top:14px;font-weight:600;}
+  input[type=number],input[type=range]{width:100%;padding:8px 10px;border:1px solid #bbb;border-radius:8px;font-size:15px;box-sizing:border-box;}
+  input:focus{border-color:var(--red);outline:none;}
+  input[type=range]{height:6px;background:linear-gradient(90deg,var(--purple) 0%,var(--red) 100%);-webkit-appearance:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--red);cursor:pointer;box-shadow:0 0 3px rgba(0,0,0,.3);}
+  .slider-val{font-weight:700;color:var(--red);margin-left:4px;}
+  .btn-row{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:24px;}
+  button{background:var(--red);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:15px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.12);transition:background .2s,transform .15s;}
+  button:hover{background:var(--purple);}button:active{transform:translateY(2px);}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:24px;}
+  .card{background:var(--light);border-radius:12px;padding:12px;text-align:center;}
+  .card span{display:block;font-size:20px;font-weight:700;color:var(--red);} .card small{color:#666;}
+  #log{height:200px;overflow-y:auto;background:#fafafa;border-radius:8px;padding:12px;border:1px solid #ddd;font-size:14px;margin-top:24px;}
+  canvas{margin-top:30px;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container">
+  <h2>オリジナルスペック シミュレーター</h2>
+
+  <label>投資（1000円単位）<input id="money" type="number" value="10"></label>
+  <label>250発あたりの回転数 <input id="rotation" type="number" step="0.1" value="17"></label>
+
+  <label>通常回転速度 (<span id="spdNorm" class="slider-val">30</span> ms)
+    <input id="normDelay" type="range" min="10" max="200" value="30" step="5"
+           oninput="spdNorm.textContent=this.value">
+  </label>
+  <label>RUSH回転速度 (<span id="spdRush" class="slider-val">60</span> ms)
+    <input id="rushDelay" type="range" min="10" max="300" value="60" step="10"
+           oninput="spdRush.textContent=this.value">
+  </label>
+  <label>LT回転速度 (<span id="spdLt" class="slider-val">120</span> ms)
+    <input id="ltDelay" type="range" min="10" max="400" value="120" step="10"
+           oninput="spdLt.textContent=this.value">
+  </label>
+
+  <div class="btn-row">
+    <button onclick="start(true)">▶ 実行（新規）</button>
+    <button onclick="stop()">⏸ 中断</button>
+    <button onclick="start(false)">⏵ 再開</button>
+    <button onclick="resetSim()">🔄 リセット</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="card"><span id="curSpin">0</span><small>現在回転数</small></div>
+    <div class="card"><span id="state">NORMAL</span><small>状態</small></div>
+    <div class="card"><span id="innerSpin">0</span><small>内部回転</small></div>
+    <div class="card"><span id="balls">0</span><small>持ち玉</small></div>
+    <div class="card"><span id="hit">0</span><small>当たり</small></div>
+  </div>
+
+  <div id="log"></div>
+  <canvas id="chart" height="200"></canvas>
+</div>
+
+<script>
+/* ====== パラメータ ====== */
+const P_NORMAL = 1/199.9;   // 初当たり
+const P_RUSH   = 1/59.9;    // RUSH / LT
+
+/* ====== 状態 ====== */
+let balls=0, spinGap=0;          // spinGap = 前回当たりからの回転数
+let mode='NORMAL', rushRemain=0, ltRemain=0, guarantee=false;
+let costPer=0, interval=null, delayNow=30, totalSpin=0, hitCnt=0;
+
+/* ====== チャート ====== */
+const ctx=document.getElementById('chart').getContext('2d');
+const color=getComputedStyle(document.documentElement).getPropertyValue('--red').trim()||'#d32f2f';
+const chart=new Chart(ctx,{type:'line',
+  data:{labels:[],datasets:[{label:'持ち玉',data:[],borderColor:color,fill:false,borderWidth:2}]},
+  options:{animation:false,responsive:true}
+});
+function addPt(){chart.data.labels.push(totalSpin);chart.data.datasets[0].data.push(Math.floor(balls));chart.update();}
+
+/* ====== DOM ====== */
+const logDiv=document.getElementById('log');
+const curSpinDom=document.getElementById('curSpin');
+const stateDom=document.getElementById('state');
+const innerSpinDom=document.getElementById('innerSpin');
+const ballsDom=document.getElementById('balls');
+const hitDom=document.getElementById('hit');
+
+function log(msg){logDiv.innerHTML+=msg+'<br>';logDiv.scrollTop=logDiv.scrollHeight;}
+function upd(){
+  curSpinDom.textContent = spinGap;
+  stateDom.textContent   = mode;
+  innerSpinDom.textContent = mode==='NORMAL' ? 0 : (mode==='RUSH'?54-rushRemain:115-ltRemain);
+  ballsDom.textContent   = Math.floor(balls);
+  hitDom.textContent     = hitCnt;
+}
+
+/* ====== タイマー ====== */
+function setTimer(ms){ if(interval) clearInterval(interval); delayNow = ms; interval = setInterval(step, ms); }
+function curDelay(){ return mode==='NORMAL'?+normDelay.value : mode==='RUSH'?+rushDelay.value : +ltDelay.value; }
+
+/* ====== 初期化 ====== */
+function init(){
+  const invest = parseInt(money.value)||0;
+  balls = invest*250;
+  spinGap = totalSpin = hitCnt = 0;
+  mode = 'NORMAL'; rushRemain = ltRemain = 0; guarantee = false;
+  costPer = 250 / parseFloat(rotation.value);
+  logDiv.innerHTML = '';
+  chart.data.labels=[]; chart.data.datasets[0].data=[]; chart.update();
+  addPt(); upd();
+}
+
+/* ====== コントロール ====== */
+function start(fresh){ if(interval) return; if(fresh) init(); setTimer(curDelay()); }
+function stop(){ if(interval){ clearInterval(interval); interval=null; }}
+function resetSim(){ stop(); init(); }
+
+/* ====== メイン ====== */
+function step(){
+  if(curDelay() !== delayNow) setTimer(curDelay());
+  mode==='NORMAL' ? normalSpin() : mode==='RUSH' ? rushSpin() : ltSpin();
+  upd();
+}
+
+/* ====== 各モード処理 ====== */
+
+// ---- 通常 ----
+function normalSpin(){
+  if(balls<=0){ log('💸 玉切れ'); stop(); return; }
+  balls -= costPer;
+  spinGap++; totalSpin++;
+  addPt();                       // 通常時だけ毎回転グラフ
+  if(Math.random() < P_NORMAL){
+    hitCnt++; const gap=spinGap; spinGap=0;
+    const r=Math.random();
+    if(r<0.30){
+      balls+=300; log(`🎯 ${gap}回転 通常300`);
+    }else if(r<0.99){
+      balls+=300; log(`🔥 ${gap}回転 RUSH300`);
+      mode='RUSH'; rushRemain=54;
+    }else{
+      balls+=1500; log(`👹 ${gap}回転 LT1500(次回濃厚)`);
+      mode='LT'; ltRemain=115; guarantee=true;
+    }
+    addPt();                     // 当たりでグラフも更新
+  }
+}
+
+// ---- RUSH ----
+function rushSpin(){
+  rushRemain--; spinGap++; totalSpin++;
+  if(Math.random()<P_RUSH){
+    hitCnt++; const gap=spinGap; spinGap=0;
+    const r=Math.random();
+    if(r<0.30){
+      balls+=300; log(`RUSH ${gap}回転 300発`); rushRemain=54;
+    }else if(r<0.70){
+      balls+=1500; log(`RUSH ${gap}回転 1500発`); rushRemain=54;
+    }else if(r<0.97){
+      balls+=1500; log(`R→LT ${gap}回転 1500発`); mode='LT'; ltRemain=115; guarantee=false;
+    }else{
+      balls+=1500; log(`R→LT次回 ${gap}回転 1500発`); mode='LT'; ltRemain=115; guarantee=true;
+    }
+    addPt();                     // ヒット時だけグラフ
+  }
+  if(rushRemain<=0 && mode==='RUSH'){ log('RUSH終了'); mode='NORMAL'; }
+}
+
+// ---- LT ----
+function ltSpin(){
+  ltRemain--; spinGap++; totalSpin++;
+  if(Math.random()<P_RUSH){
+    hitCnt++; const gap=spinGap; spinGap=0;
+    const r=Math.random();
+    if(r<0.30){
+      balls+=300; log(`LT ${gap}回転 300発`); guarantee=false;
+    }else if(r<0.775){
+      balls+=1500; log(`LT ${gap}回転 1500発`); guarantee=false;
+    }else{
+      balls+=1500; log(`LT次回 ${gap}回転 1500発`); guarantee=true;
+    }
+    ltRemain = 115; addPt();
+  }
+  if(ltRemain<=0){
+    if(!guarantee){
+      log('LT終了'); mode='NORMAL';
+    }else{
+      ltRemain=115; guarantee=false;
+    }
+  }
+}
+</script>
+</body>
+</html>
