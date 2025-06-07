@@ -1,41 +1,69 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>収支カレンダー</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8">
+  <title>収支カレンダー</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<!-- Tagify（ホール／機種入力） -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Tagify（ホール／機種入力） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
-
-<style>
+  <style>
 :root{
   --bg:#1a1a1a; --fg:#f8f8f8;
   --blue:#33a2ff; --today:#e7e7e7;
   --pos:#0060ff; --neg:#d60000; --zero:#888;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg)}
-#calHeader{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--blue);color:#fff;height:54px;position:sticky;top:0;z-index:5}
-#ym{font-size:1.05rem;font-weight:600} #monthSum{font-size:.85rem}
-.navBtn{width:28px;height:28px;border:none;background:#1d8dff;color:#fff;border-radius:4px;font-weight:700;cursor:pointer}
-.chartBtn{font-size:1.2rem;cursor:pointer;margin-left:auto;color:#ad3}
-#calendar-head,#calendar{display:grid;grid-template-columns:repeat(7,1fr)}
-#calendar-head{background:#fafafa;color:#000;font-weight:600;text-align:center;border:1px solid #e5e5e5;border-bottom:none}
-.day{border:1px solid #e5e5e5;min-height:88px;position:relative;background:#fff;color:#000}
+body{
+  font-family:-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--fg)
+}
+
+/* ── カレンダー・ヘッダー ───────────────── */
+#calHeader{
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;
+  background:var(--blue);color:#fff;height:54px;
+  position:sticky;top:0;z-index:5
+}
+#ym{font-size:1.05rem;font-weight:600}
+#monthSum{font-size:.85rem}
+.navBtn{
+  width:28px;height:28px;border:none;
+  background:#1d8dff;color:#fff;border-radius:4px;
+  font-weight:700;cursor:pointer
+}
+.chartBtn{
+  font-size:1.2rem;cursor:pointer;margin-left:auto;color:#ad3
+}
+
+/* ── カレンダー本体 ─────────────────────── */
+#calendar{display:grid;grid-template-columns:repeat(7,1fr)}
+.day{
+  border:1px solid #e5e5e5;min-height:88px;
+  position:relative;background:#fff;color:#000
+}
 .daynum{padding:2px 4px;font-size:.9rem;font-weight:500}
 .today{background:var(--today)}
-.profit{position:absolute;left:2px;right:2px;bottom:2px;font-size:.65rem;text-align:center}
+.profit{
+  position:absolute;left:2px;right:2px;bottom:2px;
+  font-size:.65rem;text-align:center
+}
 .pos{color:var(--pos)} .neg{color:var(--neg)} .zero{color:var(--zero)}
+
+/* ── モーダル ───────────────────────────── */
 dialog form{display:flex;flex-direction:column;gap:.7rem}
 dialog menu{display:flex;gap:1rem;justify-content:flex-end;margin-top:.8rem}
 dialog::backdrop{background:rgba(0,0,0,.35)}
-input,select{width:100%;padding:.6rem .5rem;border:none;border-radius:8px;background:#2d2d2d;color:#f8f8f8}
-</style>
+input,select{
+  width:100%;padding:.6rem .5rem;border:none;border-radius:8px;
+  background:#2d2d2d;color:#f8f8f8
+}
+  </style>
 </head>
 <body>
 
@@ -44,15 +72,10 @@ input,select{width:100%;padding:.6rem .5rem;border:none;border-radius:8px;backgr
   <button id="prev" class="navBtn">&lt;</button>
   <div><div id="ym"></div><div id="monthSum"></div></div>
   <button id="next" class="navBtn">&gt;</button>
-    <button class="chartBtn"
+  <button class="chartBtn"
           onclick="location.href='plot.html?year='+new Date().getFullYear()">
     <i class="fa-solid fa-chart-column"></i>
   </button>
-</div>
-
-<!-- 曜日 -->
-<div id="calendar-head">
-  <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
 </div>
 
 <!-- カレンダー本体 -->
@@ -63,189 +86,231 @@ input,select{width:100%;padding:.6rem .5rem;border:none;border-radius:8px;backgr
   <form method="dialog">
     <h3>日次入力</h3>
     <input type="date" id="rec-date" readonly>
-    <label>投資 (円)<input type="number" id="rec-invest" required></label>
-    <label>回収 (円)<input type="number" id="rec-payout" required></label>
-    <label>ホール <input id="rec-hall"></label>
-    <label>機種 <input id="rec-machine"></label>
-    <label>メモ <input id="rec-memo"></label>
-    <menu><button value="cancel">キャンセル</button><button type="submit">保存</button></menu>
+    <label>投資 (円)   <input type="number" id="rec-invest"  required></label>
+    <label>回収 (円)   <input type="number" id="rec-payout"  required></label>
+    <label>ホール      <input id="rec-hall"></label>
+    <label>機種        <input id="rec-machine"></label>
+    <label>メモ        <input id="rec-memo"></label>
+    <menu>
+      <button value="cancel" formnovalidate>キャンセル</button>
+      <button type="submit">保存</button>
+    </menu>
   </form>
 </dialog>
 
 <!-- Supabase 初期化 & ロジック -->
 <script type="module" src="../assets/js/supabase-init.js"></script>
 <script type="module">
-import { supabase }         from '../assets/js/supabase-init.js';
-import { requireAuth }      from '../assets/js/requireAuth.js';
+import { supabase }    from '../assets/js/supabase-init.js';
+import { requireAuth } from '../assets/js/requireAuth.js';
 import {
   startOfMonth,endOfMonth,eachDayOfInterval,addMonths,
   format,isToday
 } from 'https://cdn.jsdelivr.net/npm/date-fns@2.30.0/+esm';
 
-/* ---- 認証 ---- */
+/* ---- 認証（未ログインなら /login.html へ） ---- */
 const uid = (await requireAuth()).id;
 
+/* ---- DOM ---- */
+const calEl      = document.getElementById('calendar');
+const ymEl       = document.getElementById('ym');
+const monthSumEl = document.getElementById('monthSum');
+const prevBtn    = document.getElementById('prev');
+const nextBtn    = document.getElementById('next');
+const dlg        = document.getElementById('rec-modal');
+
 /* ---- 状態 ---- */
-let current = new Date();
-let balanceMap = {};   // {date:{bal,ex}}
+let current    = new Date();     // 表示中の月
+let balanceMap = {};             // {date:{bal,ex}}
 
-const calEl=document.getElementById('calendar');
-const ymEl=document.getElementById('ym');
-const monthSumEl=document.getElementById('monthSum');
-
-/* ---- ナビ ---- */
-prev.onclick=()=>{current=addMonths(current,-1);refresh();}
-next.onclick=()=>{current=addMonths(current, 1);refresh();}
-
-
-/* ---- 初回描画 ---- */
+/* ---- 初期ロード ---- */
 refresh();
 
-/* ================= 関数 ================= */
+/* ---- 月送り ---- */
+prevBtn.onclick = () => { current = addMonths(current,-1); refresh(); };
+nextBtn.onclick = () => { current = addMonths(current, 1); refresh(); };
+
+/* ====================================================
+   関数群
+   ==================================================== */
 function refresh(){
   drawGrid();
   loadMonth();
 }
 
+/* カレンダーのマスを描く（データはあとで詰める） */
 function drawGrid(){
-  calEl.innerHTML='';
-  ymEl.textContent=format(current,'yyyy年 M月');
+  calEl.innerHTML = '';
+  ymEl.textContent = format(current,'yyyy年 M月');
 
-  eachDayOfInterval({start:startOfMonth(current),end:endOfMonth(current)})
-    .forEach(d=>{
-      const ymd=format(d,'yyyy-MM-dd');
-      const div=document.createElement('div');
-      div.className='day'+(isToday(d)?' today':'');
-      div.dataset.date=ymd;
-      div.innerHTML=`<div class="daynum">${d.getDate()}</div>`;
-      div.onclick=()=>openModal(ymd);
-      calEl.appendChild(div);
-    });
+  eachDayOfInterval({
+    start:startOfMonth(current),
+    end  :endOfMonth  (current)
+  }).forEach(d=>{
+    const ymd  = format(d,'yyyy-MM-dd');
+    const cell = document.createElement('div');
+    cell.className = 'day' + (isToday(d) ? ' today' : '');
+    cell.dataset.date = ymd;
+    cell.innerHTML = `<div class="daynum">${d.getDate()}</div>`;
+    cell.onclick   = () => openModal(ymd);
+    calEl.appendChild(cell);
+  });
 }
 
+/* 今月の実収支＋期待値を取得 → セルに流し込む */
 async function loadMonth(){
-  const start=format(startOfMonth(current),'yyyy-MM-dd');
-  const end  =format(endOfMonth(current)  ,'yyyy-MM-dd');
+  const start = format(startOfMonth(current),'yyyy-MM-dd');
+  const end   = format(endOfMonth  (current),'yyyy-MM-dd');
 
   const { data } = await supabase
     .from('v_daily_sum')
     .select('date,balance,ex_total')
     .eq('user_id',uid).gte('date',start).lte('date',end);
 
-  balanceMap=Object.fromEntries(
+  balanceMap = Object.fromEntries(
     data.map(d=>[d.date,{bal:+d.balance,ex:+d.ex_total}])
   );
 
-  let sumBal=0,sumEx=0;
+  let sumBal = 0, sumEx = 0;
 
   document.querySelectorAll('.day').forEach(cell=>{
-    const v=balanceMap[cell.dataset.date];
+    const v = balanceMap[cell.dataset.date];
     if(!v) return;
-    sumBal+=v.bal; sumEx+=v.ex;
+    sumBal += v.bal; sumEx += v.ex;
 
-    const span=document.createElement('span');
-    span.className='profit '+
+    const span = document.createElement('span');
+    span.className = 'profit '+
       (v.bal>0?'pos':v.bal<0?'neg':'zero');
-    span.innerHTML=
+    span.innerHTML =
       (v.bal>0?'+':'')+v.bal.toLocaleString()+
-      '<br><small style="color:#888">'+
+      '<br><small style=\"color:#888\">'+
       (v.ex>=0?'+':'')+v.ex.toLocaleString()+' 期待</small>';
     cell.appendChild(span);
   });
 
-  monthSumEl.textContent=
-    `${sumBal>=0?'+':''}${sumBal.toLocaleString()}円 ／ 期待 ${(sumEx>=0?'+':'')+sumEx.toLocaleString()}円`;
+  monthSumEl.textContent =
+    `${sumBal>=0?'+':''}${sumBal.toLocaleString()}円 ／ 期待 `
+    + `${(sumEx>=0?'+':'')+sumEx.toLocaleString()}円`;
 }
 
-/* ---- モーダル ---- */
+/* ──────────────────────────────
+   日次モーダル（その日のデータを削除→新規 1 行 INSERT）
+   ────────────────────────────── */
 async function openModal(dateStr){
-  const dlg=document.getElementById('rec-modal');
-  dlg.querySelector('#rec-date').value=dateStr;
+  /* フォーム要素をキャッシュ */
+  const investI = dlg.querySelector('#rec-invest');
+  const payoutI = dlg.querySelector('#rec-payout');
+  const memoI   = dlg.querySelector('#rec-memo');
+  const hallI   = dlg.querySelector('#rec-hall');
+  const machI   = dlg.querySelector('#rec-machine');
 
-  const investInp = dlg.querySelector('#rec-invest');
-  const payoutInp = dlg.querySelector('#rec-payout');
-  const memoInp   = dlg.querySelector('#rec-memo');
-  const hallI     = dlg.querySelector('#rec-hall');
-  const machI     = dlg.querySelector('#rec-machine');
+  dlg.querySelector('#rec-date').value = dateStr;
 
-  /* 既存レコード取得（1 日 1 行） */
-  let exist=null;
-  {const res = await supabase
-    .from('daily_records')
-    .select('id,invest,payout,memo,daily_record_halls(hall_id),daily_record_machines(machine_id)')
-    .eq('user_id',uid).eq('date',dateStr).single();
-   if(!res.error) exist=res.data;
+  /* 既存（最新）レコード 1 行を取る——値プリセット用 */
+  let latest = null;
+  {
+    const res = await supabase
+      .from('daily_records')
+      .select('id,invest,payout,memo,daily_record_halls(hall_id),daily_record_machines(machine_id)')
+      .eq('user_id',uid).eq('date',dateStr)
+      .order('id',{ascending:false})  // 最新を先頭に
+      .limit(1)
+      .single();
+
+    if(!res.error) latest = res.data;
   }
 
-  /* Tagify */
+  /* Tagify 初期化 */
   const tgHall = await initTagify(hallI,'halls');
   const tgMach = await initTagify(machI,'machines');
 
-  /* 既存値セット */
-  if(exist){
-    investInp.value = exist.invest;
-    payoutInp.value = exist.payout;
-    memoInp.value   = exist.memo ?? '';
-    tgHall.removeAllTags();
-    tgMach.removeAllTags();
-    tgHall.addTags(exist.daily_record_halls.map(h=>tgHall.settings.whitelist
+  /* 値セット（なければ空） */
+  if(latest){
+    investI.value = latest.invest;
+    payoutI.value = latest.payout;
+    memoI.value   = latest.memo ?? '';
+    tgHall.removeAllTags(); tgMach.removeAllTags();
+    tgHall.addTags(latest.daily_record_halls.map(h=>tgHall.settings.whitelist
       .find(w=>w.id===h.hall_id)));
-    tgMach.addTags(exist.daily_record_machines.map(m=>tgMach.settings.whitelist
+    tgMach.addTags(latest.daily_record_machines.map(m=>tgMach.settings.whitelist
       .find(w=>w.id===m.machine_id)));
   }else{
-    investInp.value = payoutInp.value = memoInp.value = '';
+    investI.value = payoutI.value = memoI.value = '';
     tgHall.removeAllTags(); tgMach.removeAllTags();
   }
 
   dlg.showModal();
 
-  dlg.querySelector('form').onsubmit=async e=>{
+  /* 送信ハンドラ（既存レコード全削除 → 新規 1 行） */
+  dlg.querySelector('form').onsubmit = async e => {
     e.preventDefault();
-    const invest=+investInp.value||0;
-    const payout=+payoutInp.value||0;
-    const memo  =memoInp.value;
 
-    let recId;
-    if(exist){
-      /* UPDATE */
+    const invest = +investI.value || 0;
+    const payout = +payoutI.value || 0;
+    const memo   = memoI.value;
+
+    /* 1) その日の全レコードを削除 */
+    const { data: oldRecs } = await supabase
+      .from('daily_records')
+      .select('id')
+      .eq('user_id',uid).eq('date',dateStr);
+
+    if(oldRecs?.length){
+      const ids = oldRecs.map(r=>r.id);
+      await supabase.from('daily_record_halls')
+        .delete().in('record_id',ids);
+      await supabase.from('daily_record_machines')
+        .delete().in('record_id',ids);
       await supabase.from('daily_records')
-        .update({invest,payout,memo})
-        .eq('id',exist.id);
-      recId=exist.id;
-      await supabase.from('daily_record_halls')   .delete().eq('record_id',recId);
-      await supabase.from('daily_record_machines').delete().eq('record_id',recId);
-    }else{
-      /* INSERT */
-      const {data:newRec}=await supabase.from('daily_records')
-        .insert({user_id:uid,date:dateStr,invest,payout,memo})
-        .select('id').single();
-      recId=newRec.id;
+        .delete().in('id',ids);
     }
 
-    /* タグ再挿入 */
+    /* 2) 新規 1 行 INSERT */
+    const { data:newRec } = await supabase.from('daily_records')
+      .insert({ user_id:uid, date:dateStr, invest, payout, memo })
+      .select('id').single();
+
+    const recId = newRec.id;
+
+    /* 3) タグ再挿入 */
     await supabase.from('daily_record_halls')
       .insert(tgHall.value.map(t=>({record_id:recId,hall_id:t.id})));
     await supabase.from('daily_record_machines')
       .insert(tgMach.value.map(t=>({record_id:recId,machine_id:t.id})));
 
-    dlg.close(); refresh();
+    dlg.close();
+    refresh();
   };
 }
 
-/* ---- Tagify 初期化 ---- */
+/* ──────────────────────────────
+   Tagify 共通初期化
+   ────────────────────────────── */
 async function initTagify(el,tbl){
   if(el._tagify) return el._tagify;
-  const {data} = await supabase.from(tbl).select('id,name').order('name');
-  const tg=new Tagify(el,{whitelist:data.map(r=>({id:r.id,value:r.name})),
-                          enforceWhitelist:false,skipInvalid:true});
+  const { data } = await supabase.from(tbl).select('id,name').order('name');
+
+  const tg = new Tagify(el,{
+    whitelist       : data.map(r=>({id:r.id,value:r.name})),
+    enforceWhitelist: false,
+    skipInvalid     : true
+  });
+
+  /* 新タグ → 自動 INSERT → ID を振り直し */
   tg.on('add',async e=>{
-    if(e.detail.data.id) return;
-    const label=e.detail.data.value.trim();if(!label) return;
-    const {data:n} = await supabase.from(tbl)
-      .insert({name:label,created_by:uid}).select('id').single();
+    if(e.detail.data.id) return;               // 既存タグ
+    const label = e.detail.data.value.trim();
+    if(!label) return;
+
+    const { data:n } = await supabase
+      .from(tbl)
+      .insert({name:label,created_by:uid})
+      .select('id').single();
+
     tg.replaceTag(e.detail.tag,{id:n.id,value:label});
   });
-  return el._tagify=tg;
+
+  return el._tagify = tg;
 }
 </script>
 </body>
