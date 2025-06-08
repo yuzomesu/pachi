@@ -1,43 +1,98 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>実戦メモ</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-/* — すべて元の CSS — */
-:root{--bg:#1a1a1a;--fg:#f8f8f8;--orange:#ff9800;--green:#00c853;--red:#ff5252;--purple:#c279ff;--row1:#303030;--row2:#262626}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);padding-bottom:6rem}
-header{display:flex;align-items:center;gap:.6rem;padding:.8rem 1rem;font-size:1.25rem}
-header i{font-size:1.2rem;cursor:pointer}.spacer{flex:1}
-table{width:100%;border-collapse:collapse;margin-top:.4rem;table-layout:fixed}
-thead{background:var(--orange);color:#000;position:sticky;top:0;z-index:1}
-th,td{padding:.45rem .3rem;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
-th:first-child,td:first-child{text-align:center}
-tbody tr:not(.row-cash):not(.row-ball):nth-child(odd){background:var(--row1)}
-tbody tr:not(.row-cash):not(.row-ball):nth-child(even){background:var(--row2)}
-.row-cash{background:#403000!important}.row-ball{background:#00385c!important}
-.section{padding:1rem}
-label{display:block;font-size:.85rem;margin:.6rem 0 .25rem}
-.btn-group{display:flex;background:#333;border-radius:8px;overflow:hidden}
-.btn-group button{flex:1;padding:.45rem 0;border:none;font-size:1rem;cursor:pointer;background:#333;color:var(--fg)}
-.btn-group button.active{background:var(--orange);color:#000}
-input,select{width:100%;padding:.6rem .5rem;border:none;border-radius:8px;background:#2d2d2d;color:var(--fg);font-size:1rem}
-.summary{background:var(--purple);border-radius:12px;padding:1rem;line-height:1.6;flex:1 1 190px;min-width:190px;margin-top:1rem}
-.actions{display:flex;gap:.6rem;padding:1rem;position:sticky;bottom:0;background:var(--bg)}
-.actions button{flex:1;padding:.9rem 0;font-size:1.1rem;border:none;border-radius:12px;color:#fff;cursor:pointer}
-#btnSave{background:#888}#btnCommit{background:var(--orange);color:#000}#btnStart{background:var(--green)}#btnDelete{background:var(--red)}#btnCSV{background:#555}
-#settingsModal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10}
-#settingsBox{background:#222;padding:1.5rem;border-radius:12px;width:90%;max-width:320px}
-#settingsBox h3{margin-top:0;font-size:1.1rem;text-align:center}
-#settingsBox label{margin-top:1rem}
-#settingsBox .buttons{display:flex;gap:.6rem;margin-top:1.4rem}
-#settingsBox button{flex:1;padding:.6rem 0;border:none;border-radius:10px;font-size:1rem;color:#fff;cursor:pointer}
-#saveSet{background:var(--green)}#cancelSet{background:var(--red)}
-</style>
+  <meta charset="utf-8">
+  <title>実戦メモ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #1a1a1a; --fg: #f8f8f8; --orange: #ff9800; --green: #00c853;
+      --red: #ff5252; --purple: #c279ff; --row1: #303030; --row2: #262626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--fg); padding-bottom: 6rem;
+    }
+    header {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .8rem 1rem; font-size: 1.25rem;
+    }
+    header i { font-size: 1.2rem; cursor: pointer; }
+    .spacer { flex: 1; }
+    table {
+      width: 100%; border-collapse: collapse; margin-top: .4rem; table-layout: fixed;
+    }
+    thead {
+      background: var(--orange); color: #000;
+      position: sticky; top: 0; z-index: 1;
+    }
+    th, td {
+      padding: .45rem .3rem; white-space: nowrap; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    th:first-child, td:first-child { text-align: center; }
+    tbody tr:not(.row-cash):not(.row-ball):nth-child(odd) { background: var(--row1); }
+    tbody tr:not(.row-cash):not(.row-ball):nth-child(even) { background: var(--row2); }
+    .row-cash { background: #403000 !important; }
+    .row-ball { background: #00385c !important; }
+    .section { padding: 1rem; }
+    label { display: block; font-size: .85rem; margin: .6rem 0 .25rem; }
+    .btn-group {
+      display: flex; background: #333; border-radius: 8px; overflow: hidden;
+    }
+    .btn-group button {
+      flex: 1; padding: .45rem 0; border: none; font-size: 1rem;
+      cursor: pointer; background: #333; color: var(--fg);
+    }
+    .btn-group button.active {
+      background: var(--orange); color: #000;
+    }
+    input, select {
+      width: 100%; padding: .6rem .5rem; border: none;
+      border-radius: 8px; background: #2d2d2d; color: var(--fg); font-size: 1rem;
+    }
+    .summary {
+      background: var(--purple); border-radius: 12px; padding: 1rem;
+      line-height: 1.6; flex: 1 1 190px; min-width: 190px; margin-top: 1rem;
+    }
+    .actions {
+      display: flex; gap: .6rem; padding: 1rem;
+      position: sticky; bottom: 0; background: var(--bg);
+    }
+    .actions button {
+      flex: 1; padding: .9rem 0; font-size: 1.1rem; border: none;
+      border-radius: 12px; color: #fff; cursor: pointer;
+    }
+    #btnCommit { background: var(--orange); color: #000; }
+    #btnStart  { background: var(--green); }
+    #btnDelete { background: var(--red); }
+    #btnCSV    { background: #555; }
+
+    #settingsModal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: none; align-items: center; justify-content: center; z-index: 10;
+    }
+    #settingsBox {
+      background: #222; padding: 1.5rem; border-radius: 12px;
+      width: 90%; max-width: 320px;
+    }
+    #settingsBox h3 {
+      margin-top: 0; font-size: 1.1rem; text-align: center;
+    }
+    #settingsBox label { margin-top: 1rem; }
+    #settingsBox .buttons {
+      display: flex; gap: .6rem; margin-top: 1.4rem;
+    }
+    #settingsBox button {
+      flex: 1; padding: .6rem 0; border: none; border-radius: 10px;
+      font-size: 1rem; color: #fff; cursor: pointer;
+    }
+    #saveSet   { background: var(--green); }
+    #cancelSet { background: var(--red); }
+  </style>
 </head>
 <body>
 <header>
@@ -72,20 +127,36 @@ input,select{width:100%;padding:.6rem .5rem;border:none;border-radius:8px;backgr
   <button id="btnDelete">一行削除</button>
 </div>
 
-<!-- 設定モーダル：元と同じなので割愛 -->
+<!-- 設定モーダル -->
+<div id="settingsModal">
+  <div id="settingsBox">
+    <h3>設定</h3>
+
+    <label for="rateInput">交換率（1,000円あたりの玉数）</label>
+    <input type="number" id="rateInput" value="25" min="1">
+
+    <label for="borderInput">ボーダー（1000円回転数）</label>
+    <input type="number" id="borderInput" value="18" min="1">
+
+    <div class="buttons">
+      <button id="saveSet">保存</button>
+      <button id="cancelSet">キャンセル</button>
+    </div>
+  </div>
+</div>
 
 <script type="module">
-import { supabase }    from '../assets/js/supabase-init.js';
+import { supabase } from '../assets/js/supabase-init.js';
 import { requireAuth } from '../assets/js/requireAuth.js';
 
 /* 認証と URL パラメータ */
 const { id: uid } = await requireAuth();
 const url = new URL(location.href);
 const sid = url.searchParams.get('sid');
-if(!sid){ alert('sid がありません'); history.back();}
+if (!sid) { alert('sid がありません'); history.back(); }
 const pid = url.searchParams.get('id') || sid;
-document.getElementById('pid').textContent = pid.slice(0,8)+'…';
-const LS = 'pachi_'+sid;
+document.getElementById('pid').textContent = pid.slice(0, 8) + '…';
+const LS = 'pachi_' + sid;
 
 /* 状態 */
 let records = [];
@@ -95,7 +166,7 @@ let exchangeRate = 25;
 let borderM = 18;
 
 /* DOM */
-const tbody   = document.getElementById('tbody');
+const tbody = document.getElementById('tbody');
 const summary = document.getElementById('summary');
 const spinInp = document.getElementById('spinInput');
 
@@ -103,34 +174,37 @@ const spinInp = document.getElementById('spinInput');
 await loadRecords();
 render();
 
-/* --------------- イベント --------------- */
-document.querySelectorAll('#modeGroup button').forEach(b=>{
-  b.onclick=()=>{
-    document.querySelectorAll('#modeGroup button').forEach(x=>x.classList.remove('active'));
+/* イベント */
+document.querySelectorAll('#modeGroup button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#modeGroup button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    activeMode=b.dataset.mode;
+    activeMode = b.dataset.mode;
   };
 });
-btnStart.onclick = ()=>{
-  const v=+spinInp.value;
-  if(!Number.isFinite(v)){ alert('スタート回転数を入力'); return; }
-  records.push({spin:v,delta:0,start:true,mode:activeMode,invest:investStep});
-  render(); spinInp.value='';
+
+btnStart.onclick = () => {
+  const v = +spinInp.value;
+  if (!Number.isFinite(v)) { alert('スタート回転数を入力'); return; }
+  records.push({ spin: v, delta: 0, start: true, mode: activeMode, invest: investStep });
+  render(); spinInp.value = '';
   saveRecords();
 };
-btnCommit.onclick = ()=>{
-  if(!records.length){ alert('まず START 行を作成'); return; }
-  const v=+spinInp.value;
-  if(!Number.isFinite(v)){ alert('回転数を入力'); return; }
-  const delta=v-records.at(-1).spin;
-  if(delta<=0){ alert('前回より大きい値を'); return; }
-  investStep+=1000;
-  records.push({spin:v,delta,mode:activeMode,invest:investStep});
-  render(); spinInp.value='';
+
+btnCommit.onclick = () => {
+  if (!records.length) { alert('まず START 行を作成'); return; }
+  const v = +spinInp.value;
+  if (!Number.isFinite(v)) { alert('回転数を入力'); return; }
+  const delta = v - records.at(-1).spin;
+  if (delta <= 0) { alert('前回より大きい値を'); return; }
+  investStep += 1000;
+  records.push({ spin: v, delta, mode: activeMode, invest: investStep });
+  render(); spinInp.value = '';
   saveRecords();
 };
-btnDelete.onclick = ()=>{
-  if(records.length){
+
+btnDelete.onclick = () => {
+  if (records.length) {
     records.pop();
     investStep = records.length ? records.at(-1).invest : 0;
     render();
@@ -138,72 +212,102 @@ btnDelete.onclick = ()=>{
   }
 };
 
-/* CSV / 設定 / クリアは従来と同じ省略 */
+/* 設定モーダル制御 */
+const settingsModal = document.getElementById('settingsModal');
+const btnSetting = document.getElementById('btnSetting');
+const btnSaveSet = document.getElementById('saveSet');
+const btnCancelSet = document.getElementById('cancelSet');
+const rateInput = document.getElementById('rateInput');
+const borderInput = document.getElementById('borderInput');
 
-/* --------------- Supabase I/O --------------- */
-async function loadRecords(){
+btnSetting.onclick = () => {
+  rateInput.value = exchangeRate;
+  borderInput.value = borderM;
+  settingsModal.style.display = 'flex';
+};
+btnCancelSet.onclick = () => {
+  settingsModal.style.display = 'none';
+};
+btnSaveSet.onclick = () => {
+  const rate = parseFloat(rateInput.value);
+  const border = parseFloat(borderInput.value);
+  if (!Number.isFinite(rate) || rate <= 0) return alert('交換率が不正です');
+  if (!Number.isFinite(border) || border <= 0) return alert('ボーダーが不正です');
+  exchangeRate = rate;
+  borderM = border;
+  settingsModal.style.display = 'none';
+  render();
+  localStorage.setItem(LS, JSON.stringify({ records, investStep, exchangeRate, borderM }));
+};
+
+/* Supabase I/O */
+async function loadRecords() {
   const { data } = await supabase
     .from('play_records')
     .select('spin,delta,start,mode,invest')
-    .eq('session_id',sid).order('id');
+    .eq('session_id', sid).order('id');
   records = data || [];
   investStep = records.length ? records.at(-1).invest : 0;
+
+  // ローカルストレージ復元
+  const local = JSON.parse(localStorage.getItem(LS) || 'null');
+  if (local) {
+    exchangeRate = local.exchangeRate || exchangeRate;
+    borderM = local.borderM || borderM;
+  }
 }
-async function saveRecords(){
-  if(!records.length){ alert('入力がありません'); return; }
-  await supabase.from('play_records').delete().eq('session_id',sid);
-  const payload = records.map(r=>({...r,session_id:sid}));
+
+async function saveRecords() {
+  if (!records.length) { alert('入力がありません'); return; }
+  await supabase.from('play_records').delete().eq('session_id', sid);
+  const payload = records.map(r => ({ ...r, session_id: sid }));
   const { error } = await supabase.from('play_records').insert(payload);
-  if(error){ alert('保存失敗'); console.error(error); };
+  if (error) { alert('保存失敗'); console.error(error); };
 }
 
-/* --------------- play_sessions ＆期待値 --------------- */
-async function syncSession(){
+/* play_sessions 更新 */
+async function syncSession() {
   await supabase.from('play_sessions').update({
-    total_spin : records.filter(r=>!r.start).reduce((s,v)=>s+v.delta,0),
-    ex_ball    : +summary.dataset.exBall||0,
-    ex_cash    : +summary.dataset.exCash||0,
-    updated_at : new Date()
-  }).eq('id',sid).eq('user_id',uid);
+    total_spin: records.filter(r => !r.start).reduce((s, v) => s + v.delta, 0),
+    ex_ball: +summary.dataset.exBall || 0,
+    ex_cash: +summary.dataset.exCash || 0,
+    updated_at: new Date()
+  }).eq('id', sid).eq('user_id', uid);
 }
 
-
-/* --------------- 描画 --------------- */
-function render(){
-  /* テーブル */
-  tbody.innerHTML='';
-  let cum=0,cnt=0;
-  records.forEach(r=>{
-    const tr=document.createElement('tr');
-    if(!r.start) tr.className = r.mode==='cash'?'row-cash':'row-ball';
-    const avg=r.start ? 'START' : ((cum+=r.delta)/(++cnt)).toFixed(1);
+/* 描画 */
+function render() {
+  tbody.innerHTML = '';
+  let cum = 0, cnt = 0;
+  records.forEach(r => {
+    const tr = document.createElement('tr');
+    if (!r.start) tr.className = r.mode === 'cash' ? 'row-cash' : 'row-ball';
+    const avg = r.start ? 'START' : ((cum += r.delta) / (++cnt)).toFixed(1);
     tr.innerHTML = r.start
       ? `<td>${r.spin}</td><td>–</td><td>${avg}</td><td>${r.invest.toLocaleString()}円</td>`
       : `<td>${r.spin}</td><td>${r.delta}</td><td>${avg}</td><td>${r.invest.toLocaleString()}円</td>`;
     tbody.appendChild(tr);
   });
 
-  /* 期待値計算 */
-  const ball = records.filter(r=>!r.start&&r.mode==='ball').map(r=>r.delta);
-  const cash = records.filter(r=>!r.start&&r.mode==='cash').map(r=>r.delta);
-  let exB=0,exC=0;
-  if(borderM>0){
-    ball.forEach(d=>exB+=((d-borderM)/borderM)*25/exchangeRate*1000);
-    cash.forEach(d=>exC+=((d-borderM*exchangeRate/25)/borderM)*25/exchangeRate*1000);
+  const ball = records.filter(r => !r.start && r.mode === 'ball').map(r => r.delta);
+  const cash = records.filter(r => !r.start && r.mode === 'cash').map(r => r.delta);
+  let exB = 0, exC = 0;
+  if (borderM > 0) {
+    ball.forEach(d => exB += ((d - borderM) / borderM) * 25 / exchangeRate * 1000);
+    cash.forEach(d => exC += ((d - borderM * exchangeRate / 25) / borderM) * 25 / exchangeRate * 1000);
   }
-  const totalSpin = records.filter(r=>!r.start).reduce((s,v)=>s+v.delta,0);
-  const ratio = Math.round(ball.length/(records.filter(r=>!r.start).length||1)*100);
+  const totalSpin = records.filter(r => !r.start).reduce((s, v) => s + v.delta, 0);
+  const ratio = Math.round(ball.length / (records.filter(r => !r.start).length || 1) * 100);
 
-  summary.innerHTML=
+  summary.innerHTML =
     `持ち玉比率：${ratio}%<br>
      総回転：${totalSpin}回<br>
      期待値(玉)：${Math.round(exB).toLocaleString()}円<br>
      期待値(現)：${Math.round(exC).toLocaleString()}円`;
-  summary.dataset.exBall=Math.round(exB);
-  summary.dataset.exCash=Math.round(exC);
+  summary.dataset.exBall = Math.round(exB);
+  summary.dataset.exCash = Math.round(exC);
 
-  /* バックアップと連携 */
-  localStorage.setItem(LS,JSON.stringify({records,investStep,exchangeRate,borderM}));
+  localStorage.setItem(LS, JSON.stringify({ records, investStep, exchangeRate, borderM }));
   syncSession();
 }
 </script>
