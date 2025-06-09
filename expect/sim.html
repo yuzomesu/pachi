@@ -7,9 +7,9 @@
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    :root {
-      --bg: #1a1a1a; --fg: #f8f8f8; --orange: #ff9800; --green: #00c853;
-      --red: #ff5252; --purple: #c279ff; --row1: #303030; --row2: #262626;
+      :root{
+       --bg: #1a1a1a; --fg: #f8f8f8; --orange:#ffa07a;--sky:#483d8b; --green: #00c853;
+      --red: #ff5252; --marine: #7fffd4; --row1: #303030;--blue:#b0c4de; --row2: #262626;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -48,14 +48,14 @@
       cursor: pointer; background: #333; color: var(--fg);
     }
     .btn-group button.active {
-      background: var(--orange); color: #000;
+      background: var(--marine); color: #000;
     }
     input, select {
       width: 100%; padding: .6rem .5rem; border: none;
       border-radius: 8px; background: #2d2d2d; color: var(--fg); font-size: 1rem;
     }
     .summary {
-      background: var(--purple); border-radius: 12px; padding: 1rem;
+      background: var(--sky); border-radius: 12px; padding: 1rem;
       line-height: 1.6; flex: 1 1 190px; min-width: 190px; margin-top: 1rem;
     }
     .actions {
@@ -66,7 +66,7 @@
       flex: 1; padding: .9rem 0; font-size: 1.1rem; border: none;
       border-radius: 12px; color: #fff; cursor: pointer;
     }
-    #btnCommit { background: var(--orange); color: #000; }
+    #btnCommit { background: var(--blue); color: #000; }
     #btnStart  { background: var(--green); }
     #btnDelete { background: var(--red); }
     #btnCSV    { background: #555; }
