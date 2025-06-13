@@ -103,8 +103,12 @@
   <i id="btnSetting" class="fa-solid fa-gear"></i>
   <button onclick="location.href='machine.html'" title="一覧に戻る"
   style="background: var(--blue); color: black; padding: 0.3rem 0.6rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;">
-  ← 一覧に戻る
+  ← 戻る
 </button>
+<label>実戦日</label>
+<input id="sessionDateInput" type="date">
+
+
 </header>
 
 <table>
@@ -152,6 +156,7 @@
 <script type="module">
 import { supabase } from '../assets/js/supabase-init.js';
 import { requireAuth } from '../assets/js/requireAuth.js';
+
 
 /* 認証と URL パラメータ */
 const { id: uid } = await requireAuth();
@@ -269,12 +274,27 @@ async function saveRecords() {
   if (error) { alert('保存失敗'); console.error(error); };
 }
 
+
+let sessionDate = new Date().toISOString().slice(0, 10);
+const dateInput = document.getElementById('sessionDateInput');
+dateInput.value = sessionDate;
+dateInput.onchange = async () => {
+  sessionDate = dateInput.value;
+  await supabase               // ← ここで必ず保存
+    .from('play_sessions')
+    .update({ session_date: sessionDate })
+    .eq('id', sid);
+};
+
+
+
 /* play_sessions 更新 */
 async function syncSession() {
   await supabase.from('play_sessions').update({
     total_spin: records.filter(r => !r.start).reduce((s, v) => s + v.delta, 0),
     ex_ball: +summary.dataset.exBall || 0,
     ex_cash: +summary.dataset.exCash || 0,
+    session_date: sessionDate,   // ★ 追加
     updated_at: new Date()
   }).eq('id', sid).eq('user_id', uid);
 }

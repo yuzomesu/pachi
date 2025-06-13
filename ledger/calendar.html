@@ -72,7 +72,7 @@ input,select{
   <button id="prev" class="navBtn">&lt;</button>
   <div><div id="ym"></div><div id="monthSum"></div></div>
   <button id="next" class="navBtn">&gt;</button>
-  <button onclick="location.href='/index.html'" title="トップに戻る"
+  <button onclick="location.href='/pachi/index.html'" title="トップに戻る"
   style="background: var(--orange); color: black; padding: 0.3rem 0.6rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;">
   ← トップに戻る
 </button>
@@ -90,8 +90,13 @@ input,select{
   <form method="dialog">
     <h3>日次入力</h3>
     <input type="date" id="rec-date" readonly>
-    <label>投資 (円)   <input type="number" id="rec-invest"  required></label>
-    <label>回収 (円)   <input type="number" id="rec-payout"  required></label>
+<label>投資 (円)
+  <input type="number" id="rec-invest"  placeholder="0">
+</label>
+<label>回収 (円)
+  <input type="number" id="rec-payout"  placeholder="0">
+</label>
+
     <label>ホール      <input id="rec-hall"></label>
     <label>機種        <input id="rec-machine"></label>
     <label>メモ        <input id="rec-memo"></label>
@@ -162,39 +167,60 @@ function drawGrid(){
 }
 
 /* 今月の実収支＋期待値を取得 → セルに流し込む */
+/* ---------- loadMonth() まるごと置き換え ---------- */
 async function loadMonth(){
-  const start = format(startOfMonth(current),'yyyy-MM-dd');
-  const end   = format(endOfMonth  (current),'yyyy-MM-dd');
+  const start = format(startOfMonth(current), 'yyyy-MM-dd');
+  const end   = format(endOfMonth  (current), 'yyyy-MM-dd');
 
-  const { data } = await supabase
+  /* ① v_daily_sum ― 実収支＋期待値（収支がある日は必ず入る） */
+  const { data:sumData } = await supabase
     .from('v_daily_sum')
     .select('date,balance,ex_total')
-    .eq('user_id',uid).gte('date',start).lte('date',end);
+    .eq('user_id', uid)
+    .gte('date', start).lte('date', end);
 
-  balanceMap = Object.fromEntries(
-    data.map(d=>[d.date,{bal:+d.balance,ex:+d.ex_total}])
+  /* { 'YYYY-MM-DD': { bal, ex } } */
+  const map = Object.fromEntries(
+    sumData.map(r => [r.date, { bal:+r.balance, ex:+r.ex_total }])
   );
 
-  let sumBal = 0, sumEx = 0;
+  /* ② play_sessions から session_date と期待値を取得 */
+  const { data:sess } = await supabase
+    .from('play_sessions')
+    .select('session_date, ex_ball, ex_cash')
+    .eq('user_id', uid)
+    .gte('session_date', start).lte('session_date', end);
 
-  document.querySelectorAll('.day').forEach(cell=>{
-    const v = balanceMap[cell.dataset.date];
+  sess.forEach(s => {
+    const d  = s.session_date;
+    const ex = (Number(s.ex_ball)||0) + (Number(s.ex_cash)||0);
+    if (!ex) return;                       // 期待値 0 はスキップ
+    if (!map[d]) map[d] = { bal:0, ex };   // ← 実収支なし → bal=0
+    else         map[d].ex += ex;          // ← 実収支あり → ex 加算
+  });
+
+  /* ③ 描画 */
+  let sumBal = 0, sumEx = 0;
+  document.querySelectorAll('.day').forEach(cell => {
+    const v = map[cell.dataset.date];
     if(!v) return;
-    sumBal += v.bal; sumEx += v.ex;
+
+    sumBal += v.bal;
+    sumEx  += v.ex;
 
     const span = document.createElement('span');
-    span.className = 'profit '+
-      (v.bal>0?'pos':v.bal<0?'neg':'zero');
+    span.className = 'profit ' + (v.bal>0 ? 'pos'
+                               : v.bal<0 ? 'neg' : 'zero'); // balance=0 → zero
     span.innerHTML =
-      (v.bal>0?'+':'')+v.bal.toLocaleString()+
-      '<br><small style=\"color:#888\">'+
-      (v.ex>=0?'+':'')+v.ex.toLocaleString()+' 期待</small>';
+      (v.bal>0?'+':'') + v.bal.toLocaleString() +
+      '<br><small style="color:#888">' +
+      (v.ex>=0?'+':'') + v.ex.toLocaleString() + ' 期待</small>';
     cell.appendChild(span);
   });
 
   monthSumEl.textContent =
     `${sumBal>=0?'+':''}${sumBal.toLocaleString()}円 ／ 期待 `
-    + `${(sumEx>=0?'+':'')+sumEx.toLocaleString()}円`;
+    + `${(sumEx>=0?'+':'') + sumEx.toLocaleString()}円`;
 }
 
 /* ──────────────────────────────
