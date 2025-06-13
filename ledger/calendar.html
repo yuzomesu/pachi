@@ -1,17 +1,17 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <title>収支カレンダー</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<title>収支カレンダー</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
-  <!-- Tagify（ホール／機種入力） -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<!-- Tagify（ホール／機種入力） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 
-  <style>
+<style>
 :root{
   --bg:#1a1a1a; --fg:#f8f8f8;
   --blue:#33a2ff; --today:#e7e7e7;--orange:#FFA500;
@@ -63,7 +63,12 @@ input,select{
   width:100%;padding:.6rem .5rem;border:none;border-radius:8px;
   background:#2d2d2d;color:#f8f8f8
 }
-  </style>
+/* 既存一覧 */
+.existingList{border:1px solid #555;border-radius:6px;padding:.4rem;margin-bottom:.8rem;font-size:.8rem;line-height:1.4}
+.existingList>div{display:flex;justify-content:space-between;border-bottom:1px solid #444;padding:.2rem 0}
+.existingList>div:last-child{border-bottom:none}
+.existingList small{color:#aaa}
+</style>
 </head>
 <body>
 
@@ -73,9 +78,9 @@ input,select{
   <div><div id="ym"></div><div id="monthSum"></div></div>
   <button id="next" class="navBtn">&gt;</button>
   <button onclick="location.href='/pachi/index.html'" title="トップに戻る"
-  style="background: var(--orange); color: black; padding: 0.3rem 0.6rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;">
-  ← トップに戻る
-</button>
+    style="background:var(--orange);color:black;padding:.3rem .6rem;border:none;border-radius:8px;font-size:.9rem;cursor:pointer">
+    ← トップに戻る
+  </button>
   <button class="chartBtn"
           onclick="location.href='plot.html?year='+new Date().getFullYear()">
     <i class="fa-solid fa-chart-column"></i>
@@ -89,18 +94,24 @@ input,select{
 <dialog id="rec-modal">
   <form method="dialog">
     <h3>日次入力</h3>
-    <input type="date" id="rec-date" readonly>
-<label>投資 (円)
-  <input type="number" id="rec-invest"  placeholder="0">
-</label>
-<label>回収 (円)
-  <input type="number" id="rec-payout"  placeholder="0">
-</label>
 
-    <label>ホール      <input id="rec-hall"></label>
-    <label>機種        <input id="rec-machine"></label>
-    <label>メモ        <input id="rec-memo"></label>
+    <!-- 既存レコード一覧 -->
+    <div id="rec-existing" class="existingList"></div>
+
+    <input type="date" id="rec-date" readonly>
+    <label>投資 (円)
+      <input type="number" id="rec-invest" placeholder="0">
+    </label>
+    <label>回収 (円)
+      <input type="number" id="rec-payout" placeholder="0">
+    </label>
+    <label>メモ <input id="rec-memo"></label>
+
     <menu>
+      <button id="del-btn" type="button"
+              style="background:#d60000;color:#fff;border:none;padding:.4rem .8rem;border-radius:6px">
+        削除
+      </button>
       <button value="cancel" formnovalidate>キャンセル</button>
       <button type="submit">保存</button>
     </menu>
@@ -117,7 +128,7 @@ import {
   format,isToday
 } from 'https://cdn.jsdelivr.net/npm/date-fns@2.30.0/+esm';
 
-/* ---- 認証（未ログインなら /login.html へ） ---- */
+/* ---- 認証（未ログインなら /login.html へリダイレクト） ---- */
 const uid = (await requireAuth()).id;
 
 /* ---- DOM ---- */
@@ -129,8 +140,7 @@ const nextBtn    = document.getElementById('next');
 const dlg        = document.getElementById('rec-modal');
 
 /* ---- 状態 ---- */
-let current    = new Date();     // 表示中の月
-let balanceMap = {};             // {date:{bal,ex}}
+let current = new Date();   // 表示中の月
 
 /* ---- 初期ロード ---- */
 refresh();
@@ -167,147 +177,153 @@ function drawGrid(){
 }
 
 /* 今月の実収支＋期待値を取得 → セルに流し込む */
-/* ---------- loadMonth() まるごと置き換え ---------- */
 async function loadMonth(){
-  const start = format(startOfMonth(current), 'yyyy-MM-dd');
-  const end   = format(endOfMonth  (current), 'yyyy-MM-dd');
+  const start = format(startOfMonth(current),'yyyy-MM-dd');
+  const end   = format(endOfMonth  (current),'yyyy-MM-dd');
 
-  /* ① v_daily_sum ― 実収支＋期待値（収支がある日は必ず入る） */
+  /* v_daily_sum：balance & ex_total が入っている VIEW */
   const { data:sumData } = await supabase
     .from('v_daily_sum')
     .select('date,balance,ex_total')
-    .eq('user_id', uid)
-    .gte('date', start).lte('date', end);
+    .eq('user_id',uid)
+    .gte('date',start).lte('date',end);
 
-  /* { 'YYYY-MM-DD': { bal, ex } } */
+   /* { 'YYYY-MM-DD': { bal, ex } } に整形 */
   const map = Object.fromEntries(
-    sumData.map(r => [r.date, { bal:+r.balance, ex:+r.ex_total }])
-  );
+    sumData.map(r=>[r.date,{bal:+r.balance,ex:+r.ex_total}])
+ );
 
-  /* ② play_sessions から session_date と期待値を取得 */
+  /* ② play_sessions から期待値だけの日を補完 */
   const { data:sess } = await supabase
     .from('play_sessions')
     .select('session_date, ex_ball, ex_cash')
-    .eq('user_id', uid)
-    .gte('session_date', start).lte('session_date', end);
+    .eq('user_id',uid)
+    .gte('session_date',start).lte('session_date',end);
 
-  sess.forEach(s => {
-    const d  = s.session_date;
-    const ex = (Number(s.ex_ball)||0) + (Number(s.ex_cash)||0);
-    if (!ex) return;                       // 期待値 0 はスキップ
-    if (!map[d]) map[d] = { bal:0, ex };   // ← 実収支なし → bal=0
-    else         map[d].ex += ex;          // ← 実収支あり → ex 加算
+  sess.forEach(s=>{
+    const d  = s.session_date;                         // 'YYYY-MM-DD'
+    const ex = (Number(s.ex_ball)||0)+(Number(s.ex_cash)||0);
+    if(!ex) return;                                    // 0 は無視
+    if(!map[d]) map[d]={bal:0,ex};                     // 実収支なし → bal:0
+   else        map[d].ex += ex;                       // 既存なら ex 加算
   });
-
+  /* プロット */
   /* ③ 描画 */
-  let sumBal = 0, sumEx = 0;
-  document.querySelectorAll('.day').forEach(cell => {
-    const v = map[cell.dataset.date];
-    if(!v) return;
+let sumBal = 0, sumEx = 0;
 
-    sumBal += v.bal;
-    sumEx  += v.ex;
+document.querySelectorAll('.day').forEach(cell => {
+  const dateStr = cell.dataset.date;
+  const v = map[dateStr];
 
-    const span = document.createElement('span');
-    span.className = 'profit ' + (v.bal>0 ? 'pos'
-                               : v.bal<0 ? 'neg' : 'zero'); // balance=0 → zero
-    span.innerHTML =
-      (v.bal>0?'+':'') + v.bal.toLocaleString() +
-      '<br><small style="color:#888">' +
-      (v.ex>=0?'+':'') + v.ex.toLocaleString() + ' 期待</small>';
-    cell.appendChild(span);
-  });
+  // 期待値も収支もない → 表示しない
+  if (!v || (!v.bal && !v.ex)) return;
 
-  monthSumEl.textContent =
-    `${sumBal>=0?'+':''}${sumBal.toLocaleString()}円 ／ 期待 `
-    + `${(sumEx>=0?'+':'') + sumEx.toLocaleString()}円`;
+  sumBal += v.bal;
+  sumEx  += v.ex;
+
+  const span = document.createElement('span');
+  span.className = 'profit ' + (
+    v.bal > 0 ? 'pos' :
+    v.bal < 0 ? 'neg' :
+    'zero'
+  );
+
+  span.innerHTML =
+    `${v.bal > 0 ? '+' : ''}${v.bal.toLocaleString()}円` +
+    `<br><small style="color:#888">` +
+    `${v.ex >= 0 ? '+' : ''}${v.ex.toLocaleString()} 期待</small>`;
+
+  cell.appendChild(span);
+});
+
+monthSumEl.textContent =
+  `${sumBal >= 0 ? '+' : ''}${sumBal.toLocaleString()}円 ／ 期待 `
+  + `${(sumEx >= 0 ? '+' : '') + sumEx.toLocaleString()}円`;
+
 }
 
 /* ──────────────────────────────
-   日次モーダル（その日のデータを削除→新規 1 行 INSERT）
+   日次モーダル
    ────────────────────────────── */
 async function openModal(dateStr){
-  /* フォーム要素をキャッシュ */
+  /* フォーム要素 */
   const investI = dlg.querySelector('#rec-invest');
   const payoutI = dlg.querySelector('#rec-payout');
   const memoI   = dlg.querySelector('#rec-memo');
-  const hallI   = dlg.querySelector('#rec-hall');
-  const machI   = dlg.querySelector('#rec-machine');
+  const existEl = dlg.querySelector('#rec-existing');
 
   dlg.querySelector('#rec-date').value = dateStr;
 
-  /* 既存（最新）レコード 1 行を取る——値プリセット用 */
-  let latest = null;
-  {
-    const res = await supabase
-      .from('daily_records')
-      .select('id,invest,payout,memo,daily_record_halls(hall_id),daily_record_machines(machine_id)')
-      .eq('user_id',uid).eq('date',dateStr)
-      .order('id',{ascending:false})  // 最新を先頭に
-      .limit(1)
-      .single();
 
-    if(!res.error) latest = res.data;
+  /* ---------- 既存レコード取得 ---------- */
+  const { data: allRecs, error:rErr } = await supabase
+    .from('daily_records')
+    .select('id,invest,payout,memo')
+    .eq('user_id',uid)
+    .gte('date',dateStr).lte('date',dateStr)
+    .order('id',{ascending:true});
+  console.log('[daily_records]', allRecs, rErr);
+
+  /* 一覧描画 */
+  existEl.innerHTML = '';
+  if(allRecs?.length){
+    allRecs.forEach(r=>{
+      const d = document.createElement('div');
+      d.innerHTML =
+        `<span>${r.invest.toLocaleString()} → ${r.payout.toLocaleString()}</span>` +
+        `<small>${r.memo??''}</small>`;
+      existEl.appendChild(d);
+    });
+  }else{
+    existEl.textContent = '登録はありません';
   }
 
-  /* Tagify 初期化 */
-  const tgHall = await initTagify(hallI,'halls');
-  const tgMach = await initTagify(machI,'machines');
+  /* 最新をフォームにプリセット */
+  const latest = allRecs?.[allRecs.length-1] ?? null;
 
-  /* 値セット（なければ空） */
+
   if(latest){
     investI.value = latest.invest;
     payoutI.value = latest.payout;
-    memoI.value   = latest.memo ?? '';
-    tgHall.removeAllTags(); tgMach.removeAllTags();
-    tgHall.addTags(latest.daily_record_halls.map(h=>tgHall.settings.whitelist
-      .find(w=>w.id===h.hall_id)));
-    tgMach.addTags(latest.daily_record_machines.map(m=>tgMach.settings.whitelist
-      .find(w=>w.id===m.machine_id)));
+    memoI.value   = latest.memo??'';
   }else{
     investI.value = payoutI.value = memoI.value = '';
-    tgHall.removeAllTags(); tgMach.removeAllTags();
   }
 
   dlg.showModal();
 
-  /* 送信ハンドラ（既存レコード全削除 → 新規 1 行） */
-  dlg.querySelector('form').onsubmit = async e => {
+  /* ---------- 保存（1 行入れ替え） ---------- */
+  dlg.querySelector('form').onsubmit = async e=>{
     e.preventDefault();
 
-    const invest = +investI.value || 0;
-    const payout = +payoutI.value || 0;
-    const memo   = memoI.value;
+    const invest    = +investI.value||0;
+    const payout    = +payoutI.value||0;
+    const memo      = memoI.value;
 
-    /* 1) その日の全レコードを削除 */
-    const { data: oldRecs } = await supabase
-      .from('daily_records')
-      .select('id')
-      .eq('user_id',uid).eq('date',dateStr);
-
-    if(oldRecs?.length){
-      const ids = oldRecs.map(r=>r.id);
-      await supabase.from('daily_record_halls')
-        .delete().in('record_id',ids);
-      await supabase.from('daily_record_machines')
-        .delete().in('record_id',ids);
-      await supabase.from('daily_records')
-        .delete().in('id',ids);
+    /* 既存行を削除 */
+    if(allRecs?.length){
+      const ids = allRecs.map(r=>r.id);
+      await supabase.from('daily_records').delete().in('id',ids);
     }
 
-    /* 2) 新規 1 行 INSERT */
-    const { data:newRec } = await supabase.from('daily_records')
-      .insert({ user_id:uid, date:dateStr, invest, payout, memo })
-      .select('id').single();
+    /* 新規 INSERT */
+    await supabase.from('daily_records').insert({
+      user_id:uid,
+      date   :dateStr,
+      invest ,payout ,memo
+    });
 
-    const recId = newRec.id;
+    dlg.close();
+    refresh();
+  };
 
-    /* 3) タグ再挿入 */
-    await supabase.from('daily_record_halls')
-      .insert(tgHall.value.map(t=>({record_id:recId,hall_id:t.id})));
-    await supabase.from('daily_record_machines')
-      .insert(tgMach.value.map(t=>({record_id:recId,machine_id:t.id})));
+  /* ---------- 削除ボタン ---------- */
+  dlg.querySelector('#del-btn').onclick = async ()=>{
+    if(!allRecs?.length) return dlg.close();
+    if(!confirm('この日の全レコードを削除します。よろしいですか？')) return;
 
+    const ids = allRecs.map(r=>r.id);
+    await supabase.from('daily_records').delete().in('id',ids);
     dlg.close();
     refresh();
   };
@@ -318,17 +334,18 @@ async function openModal(dateStr){
    ────────────────────────────── */
 async function initTagify(el,tbl){
   if(el._tagify) return el._tagify;
-  const { data } = await supabase.from(tbl).select('id,name').order('name');
 
+  const { data } = await supabase.from(tbl).select('id,name').order('name');
   const tg = new Tagify(el,{
     whitelist       : data.map(r=>({id:r.id,value:r.name})),
     enforceWhitelist: false,
-    skipInvalid     : true
+    skipInvalid     : true,
+    maxTags         : 1                   // ← 単一選択に固定（複数可なら削除）
   });
 
-  /* 新タグ → 自動 INSERT → ID を振り直し */
+  /* 新タグ → INSERT → ID を付与 */
   tg.on('add',async e=>{
-    if(e.detail.data.id) return;               // 既存タグ
+    if(e.detail.data.id) return;          // 既存タグ
     const label = e.detail.data.value.trim();
     if(!label) return;
 
