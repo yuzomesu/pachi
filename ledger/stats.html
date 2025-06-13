@@ -7,6 +7,11 @@
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
+  :root{
+  --bg:#1a1a1a; --fg:#f8f8f8;
+  --blue:#33a2ff; --today:#e7e7e7;--orange:#FFA500;
+  --pos:#0060ff; --neg:#d60000; --zero:#888;
+}
 body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;
      background:#1a1a1a;color:#f8f8f8}
 header{display:flex;align-items:center;gap:.6rem;
@@ -39,6 +44,10 @@ input[type=date]{background:#444;border:none;color:#fff;padding:.4rem;border-rad
   <button onclick="location.href='plot.html?year='+new Date().getFullYear()">
     <i class="fa-solid fa-chart-line"></i>
   </button>
+  <button onclick="location.href='/index.html'" title="トップに戻る"
+  style="background: var(--orange); color: black; padding: 0.3rem 0.6rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;">
+  ← トップに戻る
+</button>
 </header>
 
 <section id="filterBar">

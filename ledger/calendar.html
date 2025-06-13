@@ -14,7 +14,7 @@
   <style>
 :root{
   --bg:#1a1a1a; --fg:#f8f8f8;
-  --blue:#33a2ff; --today:#e7e7e7;
+  --blue:#33a2ff; --today:#e7e7e7;--orange:#FFA500;
   --pos:#0060ff; --neg:#d60000; --zero:#888;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -72,6 +72,10 @@ input,select{
   <button id="prev" class="navBtn">&lt;</button>
   <div><div id="ym"></div><div id="monthSum"></div></div>
   <button id="next" class="navBtn">&gt;</button>
+  <button onclick="location.href='/index.html'" title="トップに戻る"
+  style="background: var(--orange); color: black; padding: 0.3rem 0.6rem; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer;">
+  ← トップに戻る
+</button>
   <button class="chartBtn"
           onclick="location.href='plot.html?year='+new Date().getFullYear()">
     <i class="fa-solid fa-chart-column"></i>
