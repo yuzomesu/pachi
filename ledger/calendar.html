@@ -188,58 +188,29 @@ async function loadMonth(){
     .eq('user_id',uid)
     .gte('date',start).lte('date',end);
 
-   /* { 'YYYY-MM-DD': { bal, ex } } に整形 */
   const map = Object.fromEntries(
     sumData.map(r=>[r.date,{bal:+r.balance,ex:+r.ex_total}])
- );
-
-  /* ② play_sessions から期待値だけの日を補完 */
-  const { data:sess } = await supabase
-    .from('play_sessions')
-    .select('session_date, ex_ball, ex_cash')
-    .eq('user_id',uid)
-    .gte('session_date',start).lte('session_date',end);
-
-  sess.forEach(s=>{
-    const d  = s.session_date;                         // 'YYYY-MM-DD'
-    const ex = (Number(s.ex_ball)||0)+(Number(s.ex_cash)||0);
-    if(!ex) return;                                    // 0 は無視
-    if(!map[d]) map[d]={bal:0,ex};                     // 実収支なし → bal:0
-   else        map[d].ex += ex;                       // 既存なら ex 加算
-  });
-  /* プロット */
-  /* ③ 描画 */
-let sumBal = 0, sumEx = 0;
-
-document.querySelectorAll('.day').forEach(cell => {
-  const dateStr = cell.dataset.date;
-  const v = map[dateStr];
-
-  // 期待値も収支もない → 表示しない
-  if (!v || (!v.bal && !v.ex)) return;
-
-  sumBal += v.bal;
-  sumEx  += v.ex;
-
-  const span = document.createElement('span');
-  span.className = 'profit ' + (
-    v.bal > 0 ? 'pos' :
-    v.bal < 0 ? 'neg' :
-    'zero'
   );
 
-  span.innerHTML =
-    `${v.bal > 0 ? '+' : ''}${v.bal.toLocaleString()}円` +
-    `<br><small style="color:#888">` +
-    `${v.ex >= 0 ? '+' : ''}${v.ex.toLocaleString()} 期待</small>`;
+  /* プロット */
+  let sumBal=0, sumEx=0;
+  document.querySelectorAll('.day').forEach(cell=>{
+    const v = map[cell.dataset.date];
+    if(!v) return;
 
-  cell.appendChild(span);
-});
+    sumBal+=v.bal; sumEx+=v.ex;
+    const span = document.createElement('span');
+    span.className = 'profit ' + (v.bal>0?'pos':v.bal<0?'neg':'zero');
+    span.innerHTML =
+      (v.bal>0?'+':'') + v.bal.toLocaleString() +
+      '<br><small style="color:#888">' +
+      (v.ex>=0?'+':'') + v.ex.toLocaleString() + ' 期待</small>';
+    cell.appendChild(span);
+  });
 
-monthSumEl.textContent =
-  `${sumBal >= 0 ? '+' : ''}${sumBal.toLocaleString()}円 ／ 期待 `
-  + `${(sumEx >= 0 ? '+' : '') + sumEx.toLocaleString()}円`;
-
+  monthSumEl.textContent =
+    `${sumBal>=0?'+':''}${sumBal.toLocaleString()}円 ／ 期待 ` +
+    `${(sumEx>=0?'+':'')+sumEx.toLocaleString()}円`;
 }
 
 /* ──────────────────────────────
@@ -280,6 +251,7 @@ async function openModal(dateStr){
 
   /* 最新をフォームにプリセット */
   const latest = allRecs?.[allRecs.length-1] ?? null;
+
 
 
   if(latest){
