@@ -316,7 +316,6 @@ async function syncSession() {
     total_spin: records.filter(r => !r.start).reduce((s, v) => s + v.delta, 0),
     ex_ball: +summary.dataset.exBall || 0,
     ex_cash: +summary.dataset.exCash || 0,
-    session_date: sessionDate,   // ★ 追加
     updated_at: new Date()
   }).eq('id', sid).eq('user_id', uid);
 }
