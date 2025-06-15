@@ -63,9 +63,9 @@ async function loadCards(){
 
   const { data, error } = await supabase
     .from('play_sessions')
-    .select('id, title, updated_at, total_spin, ex_ball, ex_cash')
+    .select('id, title, session_date, total_spin, ex_ball, ex_cash')
     .eq('user_id', uid)
-    .order('updated_at', { ascending:false });
+    .order('session_date', { ascending:false });
 
   if(error){ console.error(error); return; }
   data.forEach(row => addSessionCard(row));
@@ -77,7 +77,7 @@ addCard.onclick = async () => {
   if(!title) return;
   const { data:row } = await supabase.from('play_sessions')
     .insert({ user_id:uid, title })
-    .select('id, title, updated_at, total_spin, ex_ball, ex_cash')
+    .select('id, title, session_date, total_spin, ex_ball, ex_cash')
     .single();
   if(row) loadCards();             // ★ 必ず最新で描き直す
 };
@@ -90,7 +90,7 @@ function addSessionCard(s){
     <strong class="session-title">${s.title || 'タイトルなし'}</strong>
     <div>回転数 ${s.total_spin ?? '―'}</div>
     <div class="expect">期待値 ${(Number(s.ex_ball)+Number(s.ex_cash)).toLocaleString()} 円</div>
-    <div class="time">${s.updated_at ? new Date(s.updated_at).toLocaleString() : '—'}</div>
+    <div class="time">${s.session_date ? new Date(s.session_date).toLocaleString() : '—'}</div>
     <i class="fa-solid fa-trash delBtn"></i>
   `;
 
