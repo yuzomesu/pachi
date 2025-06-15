@@ -275,16 +275,38 @@ async function saveRecords() {
 }
 
 
-let sessionDate = new Date().toISOString().slice(0, 10);
 const dateInput = document.getElementById('sessionDateInput');
-dateInput.value = sessionDate;
-dateInput.onchange = async () => {
-  sessionDate = dateInput.value;
-  await supabase               // ← ここで必ず保存
+
+// Supabaseからsession_dateを取得して初期値に設定
+(async () => {
+  const { data, error } = await supabase
     .from('play_sessions')
-    .update({ session_date: sessionDate })
-    .eq('id', sid);
-};
+    .select('session_date')
+    .eq('id', sid)
+    .single();
+
+  if (error) {
+    console.error('日付の取得に失敗しました:', error);
+    return;
+  }
+
+  let sessionDate = data.session_date?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+  dateInput.value = sessionDate;
+
+  // onchangeハンドラーを設定
+  dateInput.onchange = async () => {
+    sessionDate = dateInput.value;
+    const { error } = await supabase
+      .from('play_sessions')
+      .update({ session_date: sessionDate })
+      .eq('id', sid);
+
+    if (error) {
+      console.error('日付の保存に失敗しました:', error);
+    }
+  };
+})();
+
 
 
 
