@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <div class="mb-4">
+ <div class="mb-4">
   <button
     onclick="location.href='/pachi/index.html'"
     class="rounded-full bg-indigo-500 px-5 py-３ text-gray font-semibold shadow hover:bg-indigo-600 transition"
@@ -87,26 +87,48 @@ function addSessionCard(s){
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = `
-    <strong>${s.title||'タイトルなし'}</strong>
+    <strong class="session-title">${s.title || 'タイトルなし'}</strong>
     <div>回転数 ${s.total_spin ?? '―'}</div>
     <div class="expect">期待値 ${(Number(s.ex_ball)+Number(s.ex_cash)).toLocaleString()} 円</div>
     <div class="time">${s.updated_at ? new Date(s.updated_at).toLocaleString() : '—'}</div>
-    <i class="fa-solid fa-trash delBtn"></i>             <!-- ★ -->
+    <i class="fa-solid fa-trash delBtn"></i>
   `;
 
-  /* → sim.html へ遷移 */
-  card.addEventListener('click', e=>{
-    if(e.target.classList.contains('delBtn')) return;   // 削除ボタンは除外
+  // タイトル変更機能
+  const titleElem = card.querySelector('.session-title');
+  titleElem.style.cursor = 'pointer';
+  titleElem.title = 'クリックでタイトル編集';
+  titleElem.onclick = async (e) => {
+    e.stopPropagation(); // 親カードクリックイベントの抑止
+    const newTitle = prompt('新しいセッション名を入力してください', s.title);
+    if (!newTitle || newTitle === s.title) return;
+
+    const { error } = await supabase
+      .from('play_sessions')
+      .update({ title: newTitle })
+      .eq('id', s.id);
+
+    if (error) {
+      alert('タイトルの更新に失敗しました');
+    } else {
+      loadCards(); // 再描画
+    }
+  };
+
+  // カード全体クリックで sim.html へ
+  card.addEventListener('click', e => {
+    if (e.target.classList.contains('delBtn')) return;
+    if (e.target.classList.contains('session-title')) return;
     location.href = `sim.html?sid=${s.id}&id=${s.id}`;
   });
 
-  /* ★ 削除ボタン */
-  card.querySelector('.delBtn').onclick = async e=>{
+  // 削除ボタン処理
+  card.querySelector('.delBtn').onclick = async e => {
     e.stopPropagation();
-    if(!confirm('このセッションを削除しますか？')) return;
+    if (!confirm('このセッションを削除しますか？')) return;
     const { error } = await supabase.from('play_sessions')
       .delete().eq('id', s.id);
-    if(error) alert('削除に失敗しました'); else loadCards();
+    if (error) alert('削除に失敗しました'); else loadCards();
   };
 
   grid.appendChild(card);
