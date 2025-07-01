@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ボーダー計算機</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background: #1a1a1a;
+      color: #f8f8f8;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-size: 0.95rem;
+    }
+    select, input {
+      width: 100%;
+      padding: 0.6rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #2d2d2d;
+      color: #f8f8f8;
+    }
+    .result {
+      margin-top: 2rem;
+      font-size: 1.2rem;
+      text-align: center;
+      background: #333;
+      padding: 1rem;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>ボーダー計算機</h1>
+  <label for="machineSelect">機種を選択：</label>
+  <select id="machineSelect">
+    <option value="eva">エヴァ15</option>
+    <option value="ghoul">東京喰種</option>
+    <option value="karakuri">からくりサーカス</option>
+    <option value="rezero2">リゼロ2(裏技あり)</option>
+    <option value="rezero">リゼロ鬼がかり(裏技あり)</option>
+    <option value="senkou">SAO閃光の軌跡</option>
+    <option value="sao">319SAO(裏技あり)</option>
+    <!-- 他の台も今後追加予定 -->
+  </select>
+
+  <label for="mInput">ラウンドベース M（例: 93など）:</label>
+  <input type="number" id="mInput" placeholder="140" min="1">
+
+  <div class="result" id="resultBox">ボーダー値を計算します</div>
+
+  <script>
+    const machineFormulas = {
+      eva: M => 16.54 * 140 / M,
+      ghoul: M => 16.7 * 140 / M,
+      karakuri:M => 17.26 * 140 / M,
+      rezero2: M => 15.88 * 140 / M,
+      rezero: M => 16.41 * 140 / M,
+      senkou: M => 16.5 * 140 / M,
+      sao: M => 16.29 * 140 / M,
+    };
+
+    const select = document.getElementById('machineSelect');
+    const mInput = document.getElementById('mInput');
+    const resultBox = document.getElementById('resultBox');
+function updateResult() {
+  const mRaw = mInput.value.trim();
+  const m = mRaw === '' ? 140 : parseFloat(mRaw);  // 入力なし → 140 を使う
+  const machine = select.value;
+
+  if (!Number.isFinite(m) || m <= 0) {
+    resultBox.textContent = 'Mを正しく入力してください';
+    return;
+  }
+
+  const border = machineFormulas[machine](m);
+  resultBox.textContent = `ボーダー: ${border.toFixed(2)} 回/1k`;
+}
+
+    select.onchange = updateResult;
+    mInput.oninput = updateResult;
+    updateResult(); 
+  </script>
+</body>
+</html>
