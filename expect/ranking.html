@@ -122,6 +122,8 @@ import { supabase } from '../assets/js/supabase-init.js';
     .gte('month', '2025-05-01') // 5/2日以降のデータに絞り込み
     .order('month', { ascending: false })
     .order('ex_rank', { ascending: true });
+  
+  await supabase.rpc('refresh_monthly_user_rankings');
 
   if (rankErr) { console.error(rankErr); return; }
 
