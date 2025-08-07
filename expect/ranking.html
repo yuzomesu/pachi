@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>累計バランス & 支出プロット + 月次ランキング</title>
+  <!-- 外部ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    #ranking-table { border-collapse: collapse; width: 100%; margin-top:2rem; }
+    #ranking-table th, #ranking-table td { border: 1px solid #ccc; padding: 0.5rem; text-align: right; }
+    #ranking-table th { background: #f5f5f5; }
+    #pid { font-size: 0.9rem; color: #666; margin-left: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>累計バランス & 支出 (全ユーザ) <span id="pid"></span></h1>
+  <canvas id="cumulativeChart"></canvas>
+
+  <h2>月次ランキング（ユーザ別）</h2>
+  <label for="monthSelect">月を選択：</label>
+  <select id="monthSelect"></select>
+  <table id="ranking-table">
+    <thead>
+      <tr>
+        <th>順位</th>
+        <th>ユーザ名</th>
+        <th>月間期待値合計</th>
+      </tr>
+    </thead>
+    <tbody id="rankingBody"></tbody>
+  </table>
+
+<!-- ここからモジュールスクリプト -->
+<script type="module">
+
+import { supabase } from '../assets/js/supabase-init.js';
+
+(async () => {
+  /* 認証と URL パラメータ */
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    location.href = '../login.html';
+    return;
+  }
+  const uid = user.id;
+
+  // URLパラメータを安全に取得
+  let sid, pid;
+  try {
+    const url = new URL(location.href);
+    sid = url.searchParams.get('sid');
+    pid = url.searchParams.get('id') || sid;
+  } catch (error) {
+    console.error('URL parsing error:', error);
+    // URLSearchParamsを使用してフォールバック
+    const urlParams = new URLSearchParams(window.location.search);
+    sid = urlParams.get('sid');
+    pid = urlParams.get('id') || sid;
+  }
+
+  // sidがない場合のデフォルト処理
+  if (!sid) {
+    console.log('sid パラメータがありません。デフォルト値を使用します。');
+    sid = 'default'; // デフォルト値または適切な値
+  }
+
+  // pidがない場合のデフォルト処理
+  if (!pid) {
+    pid = sid; // sidをpidとして使用
+  }
+
+  const pidLabel = document.getElementById('pid');
+  if (pidLabel && pid) {
+    pidLabel.textContent = `(${pid.slice(0,8)}…)`;
+  }
+
+  // --- 累計グラフ取得 ---
+  const { data: cumRows, error: cumErr } = await supabase
+    .from('cumulative_totals')
+    .select('date,cumulative_balance,cumulative_ex')
+    .gte('date', '2025-05-01') // 5/2日以降のデータに絞り込み
+    .order('date', { ascending: true });
+
+  if (cumErr) { console.error(cumErr); return; }
+
+  const labels   = cumRows.map(r => r.date);
+  const balances = cumRows.map(r => Number(r.cumulative_balance));
+  const exes     = cumRows.map(r => Number(r.cumulative_ex));
+
+  // 累計バランスの初期値を計算（最初の値）
+  const initialBalance = balances.length > 0 ? balances[0] : 0;
+
+  // すべての累計バランスから初期値を引く
+  const adjustedBalances = balances.map(balance => balance - initialBalance);
+
+  new Chart(
+    document.getElementById('cumulativeChart'),
+    {
+      type: 'line',
+      data: {
+        labels,
+              datasets: [
+        { label: '累積収支', data: adjustedBalances, borderWidth: 2, fill: false },
+        { label: '累積期待値',   data: exes,     borderWidth: 2, fill: false }
+      ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    }
+  );
+
+  // --- 月次ランキング取得 ---
+  const { data: rankRows, error: rankErr } = await supabase
+    .from('monthly_user_rankings')
+    .select('month,user_id,username,ex_month,ex_rank')
+    .gte('month', '2025-05-01') // 5/2日以降のデータに絞り込み
+    .order('month', { ascending: false })
+    .order('ex_rank', { ascending: true });
+
+  if (rankErr) { console.error(rankErr); return; }
+
+  // 月リスト生成
+  const months = [...new Set(rankRows.map(r => r.month))].sort().reverse();
+  const monthSelect = document.getElementById('monthSelect');
+  months.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m.slice(0, 10);
+    monthSelect.appendChild(opt);
+  });
+
+  const formatNumber = n => Number(n).toLocaleString();
+
+  function renderRanking(month) {
+    const tbody = document.getElementById('rankingBody');
+    tbody.innerHTML = '';
+    rankRows
+      .filter(r => r.month === month)
+      .filter(r => Number(r.ex_month) > 0) // ex_monthが0の行を除外
+      .sort((a, b) => a.ex_rank - b.ex_rank)
+      .forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${r.ex_rank}</td>
+          <td>${r.username}</td>
+          <td>${formatNumber(r.ex_month)}</td>`;
+        tbody.appendChild(tr);
+      });
+  }
+
+  monthSelect.addEventListener('change', e => renderRanking(e.target.value));
+  if (months.length) renderRanking(months[0]);
+})();
+</script>
+</body>
+</html>
