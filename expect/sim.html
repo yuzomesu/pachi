@@ -268,7 +268,6 @@ async function syncSession(){
     ex_cash    : +summary.dataset.exCash || 0,
     border     : borderM,
     exchange   : exchangeRate,
-    unit_total : unitTotal ?? null,
     updated_at : new Date()
   }).eq('id', sid).eq('user_id', uid);
 }
