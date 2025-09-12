@@ -44,6 +44,8 @@
   <label for="machineSelect">機種を選択：</label>
   <select id="machineSelect">
     <option value="eva">エヴァ15</option>
+    <option value="umi">大海5</option>
+    <option value="kiwami">極ジャパン</option>
     <option value="revenger">東リベ</option>
     <option value="ghoul">東京喰種</option>
     <option value="karakuri">からくりサーカス</option>
@@ -62,6 +64,8 @@
   <script>
     const machineFormulas = {
       eva: M => 16.54 * 140 / M,
+      umi: M => 2308 / M,
+      kiwami: M => 2530 / M,
       revenger: M => 2298.889492 / M,
       ghoul: M => 16.7 * 140 / M,
       karakuri:M => 17.26 * 140 / M,
