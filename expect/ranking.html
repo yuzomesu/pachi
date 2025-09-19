@@ -77,43 +77,55 @@ import { supabase } from '../assets/js/supabase-init.js';
   }
 
   // --- 累計グラフ取得 ---
-  const { data: cumRows, error: cumErr } = await supabase
-    .from('cumulative_totals')
-    .select('date,cumulative_balance,cumulative_ex')
-    .gte('date', '2025-05-01') // 5/2日以降のデータに絞り込み
-    .order('date', { ascending: true });
+  // --- 累計グラフ取得 ---
+const { data: cumRows, error: cumErr } = await supabase
+  .from('cumulative_totals')
+  .select('date,cumulative_balance,cumulative_ex')
+  .gte('date', '2025-05-01') // 5/1以降のデータに絞り込み
+  .order('date', { ascending: true });
 
-  if (cumErr) { console.error(cumErr); return; }
+if (cumErr) { console.error(cumErr); return; }
 
-  const labels   = cumRows.map(r => r.date);
-  const balances = cumRows.map(r => Number(r.cumulative_balance));
-  const exes     = cumRows.map(r => Number(r.cumulative_ex));
+// 生配列
+const rawLabels   = cumRows.map(r => r.date);
+const rawBalances = cumRows.map(r => Number(r.cumulative_balance));
+const rawCumEx    = cumRows.map(r => Number(r.cumulative_ex));
 
-  // 累計バランスの初期値を計算（最初の値）
-  const initialBalance = balances.length > 0 ? balances[0] : 0;
+// 日次期待値 = 累積期待値の前日差分
+const dailyEx = rawCumEx.map((v, i) => i === 0 ? v : v - rawCumEx[i - 1]);
 
-  // すべての累計バランスから初期値を引く
-  const adjustedBalances = balances.map(balance => balance - initialBalance);
+// 期待値が 0（≒ 1e-9以内）の日は除外
+const keepIdx = dailyEx
+  .map((v, i) => Math.abs(v) > 1e-9 ? i : -1)
+  .filter(i => i !== -1);
 
-  new Chart(
-    document.getElementById('cumulativeChart'),
-    {
-      type: 'line',
-      data: {
-        labels,
-              datasets: [
-        { label: '累積収支', data: adjustedBalances, borderWidth: 2, fill: false },
-        { label: '累積期待値',   data: exes,     borderWidth: 2, fill: false }
+// フィルタ後の系列
+const labels   = keepIdx.map(i => rawLabels[i]);
+const balances = keepIdx.map(i => rawBalances[i]);
+const exes     = keepIdx.map(i => rawCumEx[i]); // 表示は累積期待値のまま
+
+// バランスはフィルタ後の先頭値でゼロ基準化
+const initialBalance = balances.length > 0 ? balances[0] : 0;
+const adjustedBalances = balances.map(b => b - initialBalance);
+
+// 描画
+new Chart(
+  document.getElementById('cumulativeChart'),
+  {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '累積収支',   data: adjustedBalances, borderWidth: 2, fill: false },
+        { label: '累積期待値', data: exes,             borderWidth: 2, fill: false }
       ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: { beginAtZero: true }
-        }
-      }
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true } }
     }
-  );
+  }
+);
 
   // --- 月次ランキング取得 ---
   const { data: rankRows, error: rankErr } = await supabase
