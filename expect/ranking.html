@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>累計バランス & 支出プロット + 月次ランキング</title>
+  <title>累計収支 vs 累計期待値 + 月次期待値ランキング</title>
   <!-- 外部ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
@@ -15,7 +15,7 @@
   </style>
 </head>
 <body>
-  <h1>累計バランス & 支出 (全ユーザ) <span id="pid"></span></h1>
+  <h1>累計収支 vs 累計期待値 + 月次期待値ランキング<span id="pid"></span></h1>
   <canvas id="cumulativeChart"></canvas>
 
   <h2>月次ランキング（ユーザ別）</h2>
@@ -63,7 +63,7 @@ import { supabase } from '../assets/js/supabase-init.js';
   // sidがない場合のデフォルト処理
   if (!sid) {
     console.log('sid パラメータがありません。デフォルト値を使用します。');
-    sid = 'default'; // デフォルト値または適切な値
+    sid = ''; // デフォルト値または適切な値
   }
 
   // pidがない場合のデフォルト処理
