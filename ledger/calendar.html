@@ -105,6 +105,10 @@ input,select{
     <label>回収 (円)
       <input type="number" id="rec-payout" placeholder="0">
     </label>
+
+    <label>期待値 (円・任意)
+      <input type="number" id="rec-ex-manual" placeholder="0">
+    </label>
     <label>メモ <input id="rec-memo"></label>
 
     <menu>
@@ -216,78 +220,99 @@ async function loadMonth(){
 /* ──────────────────────────────
    日次モーダル
    ────────────────────────────── */
-async function openModal(dateStr){
+  async function openModal(dateStr){
   /* フォーム要素 */
-  const investI = dlg.querySelector('#rec-invest');
-  const payoutI = dlg.querySelector('#rec-payout');
-  const memoI   = dlg.querySelector('#rec-memo');
-  const existEl = dlg.querySelector('#rec-existing');
+  const investI   = dlg.querySelector('#rec-invest');
+  const payoutI   = dlg.querySelector('#rec-payout');
+  const memoI     = dlg.querySelector('#rec-memo');
+  const exManualI = dlg.querySelector('#rec-ex-manual'); // ★追加
+  const existEl   = dlg.querySelector('#rec-existing');
 
   dlg.querySelector('#rec-date').value = dateStr;
 
 
   /* ---------- 既存レコード取得 ---------- */
-  const { data: allRecs, error:rErr } = await supabase
-    .from('daily_records')
-    .select('id,invest,payout,memo')
-    .eq('user_id',uid)
-    .gte('date',dateStr).lte('date',dateStr)
-    .order('id',{ascending:true});
-  console.log('[daily_records]', allRecs, rErr);
+    /* ---------- 既存レコード取得 ---------- */
+    const { data: allRecs, error:rErr } = await supabase
+      .from('daily_records')
+      .select('id,invest,payout,memo,ex_manual')  // ★ex_manual 追加
+      .eq('user_id',uid)
+      .gte('date',dateStr).lte('date',dateStr)
+      .order('id',{ascending:true});
+    console.log('[daily_records]', allRecs, rErr);
 
-  /* 一覧描画 */
-  existEl.innerHTML = '';
-  if(allRecs?.length){
-    allRecs.forEach(r=>{
-      const d = document.createElement('div');
-      d.innerHTML =
-        `<span>${r.invest.toLocaleString()} → ${r.payout.toLocaleString()}</span>` +
-        `<small>${r.memo??''}</small>`;
-      existEl.appendChild(d);
-    });
-  }else{
-    existEl.textContent = '登録はありません';
-  }
+
+    /* 一覧描画 */
+    existEl.innerHTML = '';
+    if(allRecs?.length){
+      allRecs.forEach(r=>{
+        const d = document.createElement('div');
+
+        const exText = r.ex_manual
+          ? ` ／ 期待 ${r.ex_manual.toLocaleString()}`
+          : '';
+
+        d.innerHTML =
+          `<span>${r.invest.toLocaleString()} → ${r.payout.toLocaleString()}${exText}</span>` +
+          `<small>${r.memo ?? ''}</small>`;
+        existEl.appendChild(d);
+      });
+    }else{
+      existEl.textContent = '登録はありません';
+    }
+
 
   /* 最新をフォームにプリセット */
   const latest = allRecs?.[allRecs.length-1] ?? null;
 
 
 
-  if(latest){
-    investI.value = latest.invest;
-    payoutI.value = latest.payout;
-    memoI.value   = latest.memo??'';
-  }else{
-    investI.value = payoutI.value = memoI.value = '';
-  }
+    if(latest){
+      investI.value   = latest.invest;
+      payoutI.value   = latest.payout;
+      memoI.value     = latest.memo ?? '';
+      exManualI.value = latest.ex_manual ?? '';  // ★追加
+    }else{
+      investI.value   = '';
+      payoutI.value   = '';
+      memoI.value     = '';
+      exManualI.value = '';                      // ★追加
+    }
+
+    dlg.showModal();
+
 
   dlg.showModal();
 
-  /* ---------- 保存（1 行入れ替え） ---------- */
-  dlg.querySelector('form').onsubmit = async e=>{
-    e.preventDefault();
+    /* ---------- 保存（1 行入れ替え） ---------- */
+    dlg.querySelector('form').onsubmit = async e=>{
+      e.preventDefault();
 
-    const invest    = +investI.value||0;
-    const payout    = +payoutI.value||0;
-    const memo      = memoI.value;
+      const invest    = +investI.value   || 0;
+      const payout    = +payoutI.value   || 0;
+      const memo      = memoI.value;
+      const ex_manual = +exManualI.value || 0;   // ★追加
 
-    /* 既存行を削除 */
-    if(allRecs?.length){
-      const ids = allRecs.map(r=>r.id);
-      await supabase.from('daily_records').delete().in('id',ids);
-    }
+      /* 既存行を削除 */
+      if(allRecs?.length){
+        const ids = allRecs.map(r=>r.id);
+        await supabase.from('daily_records').delete().in('id',ids);
+      }
 
-    /* 新規 INSERT */
-    await supabase.from('daily_records').insert({
-      user_id:uid,
-      date   :dateStr,
-      invest ,payout ,memo
-    });
+      /* 新規 INSERT */
+      await supabase.from('daily_records').insert({
+        user_id: uid,
+        date   : dateStr,
+        invest,
+        payout,
+        memo,
+        ex_manual                         // ★追加
+      });
 
-    dlg.close();
-    refresh();
-  };
+      dlg.close();
+      refresh();
+    };
+
 
   /* ---------- 削除ボタン ---------- */
   dlg.querySelector('#del-btn').onclick = async ()=>{
