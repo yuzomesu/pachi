@@ -2,175 +2,278 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>累計収支 vs 累計期待値 + 月次期待値ランキング</title>
+  <title>累計収支 vs 累計期待値 + 月次・累計ランキング</title>
   <!-- 外部ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
   <style>
     body { font-family: sans-serif; margin: 2rem; }
-    #ranking-table { border-collapse: collapse; width: 100%; margin-top:2rem; }
-    #ranking-table th, #ranking-table td { border: 1px solid #ccc; padding: 0.5rem; text-align: right; }
-    #ranking-table th { background: #f5f5f5; }
+    #ranking-table,
+    #total-ranking-table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    #ranking-table th, #ranking-table td,
+    #total-ranking-table th, #total-ranking-table td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: right;
+    }
+    #ranking-table th, #total-ranking-table th { background: #f5f5f5; }
     #pid { font-size: 0.9rem; color: #666; margin-left: .5rem; }
+    label { margin-right: .5rem; }
   </style>
 </head>
 <body>
-  <h1>累計収支 vs 累計期待値 + 月次期待値ランキング<span id="pid"></span></h1>
+  <h1>累計収支 vs 累計期待値 + 月次・累計ランキング<span id="pid"></span></h1>
   <canvas id="cumulativeChart"></canvas>
 
   <h2>月次ランキング（ユーザ別）</h2>
-  <label for="monthSelect">月を選択：</label>
-  <select id="monthSelect"></select>
+  <div>
+    <label for="monthSelect">月を選択：</label>
+    <select id="monthSelect"></select>
+
+    <label for="rankType" style="margin-left: 1rem;">ランキング種別：</label>
+    <select id="rankType">
+      <option value="ex">期待値</option>
+      <option value="balance">収支</option>
+    </select>
+  </div>
+
   <table id="ranking-table">
     <thead>
       <tr>
         <th>順位</th>
         <th>ユーザ名</th>
-        <th>月間期待値合計</th>
+        <th id="valueHeader">月間期待値合計</th>
       </tr>
     </thead>
     <tbody id="rankingBody"></tbody>
   </table>
 
-<!-- ここからモジュールスクリプト -->
-<script type="module">
+  <h2>累計ランキング（ユーザ別）</h2>
+  <div>
+    <label for="totalRankType">ランキング種別：</label>
+    <select id="totalRankType">
+      <option value="ex">累計期待値</option>
+      <option value="balance">累計収支</option>
+    </select>
+  </div>
 
-import { supabase } from '../assets/js/supabase-init.js';
+  <table id="total-ranking-table">
+    <thead>
+      <tr>
+        <th>順位</th>
+        <th>ユーザ名</th>
+        <th id="totalValueHeader">累計期待値</th>
+      </tr>
+    </thead>
+    <tbody id="totalRankingBody"></tbody>
+  </table>
 
-(async () => {
-  /* 認証と URL パラメータ */
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    location.href = '../login.html';
-    return;
-  }
-  const uid = user.id;
+  <!-- ここからモジュールスクリプト -->
+  <script type="module">
+  import { supabase } from '../assets/js/supabase-init.js';
 
-  // URLパラメータを安全に取得
-  let sid, pid;
-  try {
-    const url = new URL(location.href);
-    sid = url.searchParams.get('sid');
-    pid = url.searchParams.get('id') || sid;
-  } catch (error) {
-    console.error('URL parsing error:', error);
-    // URLSearchParamsを使用してフォールバック
-    const urlParams = new URLSearchParams(window.location.search);
-    sid = urlParams.get('sid');
-    pid = urlParams.get('id') || sid;
-  }
-
-  // sidがない場合のデフォルト処理
-  if (!sid) {
-    console.log('sid パラメータがありません。デフォルト値を使用します。');
-    sid = ''; // デフォルト値または適切な値
-  }
-
-  // pidがない場合のデフォルト処理
-  if (!pid) {
-    pid = sid; // sidをpidとして使用
-  }
-
-  const pidLabel = document.getElementById('pid');
-  if (pidLabel && pid) {
-    pidLabel.textContent = `(${pid.slice(0,8)}…)`;
-  }
-
-  // --- 累計グラフ取得 ---
-  // --- 累計グラフ取得 ---
-const { data: cumRows, error: cumErr } = await supabase
-  .from('cumulative_totals')
-  .select('date,cumulative_balance,cumulative_ex')
-  .gte('date', '2025-05-01') // 5/1以降のデータに絞り込み
-  .order('date', { ascending: true });
-
-if (cumErr) { console.error(cumErr); return; }
-
-// 生配列
-const rawLabels   = cumRows.map(r => r.date);
-const rawBalances = cumRows.map(r => Number(r.cumulative_balance));
-const rawCumEx    = cumRows.map(r => Number(r.cumulative_ex));
-
-// 日次期待値 = 累積期待値の前日差分
-const dailyEx = rawCumEx.map((v, i) => i === 0 ? v : v - rawCumEx[i - 1]);
-
-// 期待値が 0（≒ 1e-9以内）の日は除外
-const keepIdx = dailyEx
-  .map((v, i) => Math.abs(v) > 1e-9 ? i : -1)
-  .filter(i => i !== -1);
-
-// フィルタ後の系列
-const labels   = keepIdx.map(i => rawLabels[i]);
-const balances = keepIdx.map(i => rawBalances[i]);
-const exes     = keepIdx.map(i => rawCumEx[i]); // 表示は累積期待値のまま
-
-// バランスはフィルタ後の先頭値でゼロ基準化
-const initialBalance = balances.length > 0 ? balances[0] : 0;
-const adjustedBalances = balances.map(b => b - initialBalance);
-
-// 描画
-new Chart(
-  document.getElementById('cumulativeChart'),
-  {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: '累積収支',   data: adjustedBalances, borderWidth: 2, fill: false },
-        { label: '累積期待値', data: exes,             borderWidth: 2, fill: false }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: { y: { beginAtZero: true } }
+  (async () => {
+    /* 認証と URL パラメータ */
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      location.href = '../login.html';
+      return;
     }
-  }
-);
+    const uid = user.id;
 
-  // --- 月次ランキング取得 ---
-  const { data: rankRows, error: rankErr } = await supabase
-    .from('monthly_user_rankings')
-    .select('month,user_id,username,ex_month,ex_rank')
-    .gte('month', '2025-05-01') // 5/2日以降のデータに絞り込み
-    .order('month', { ascending: false })
-    .order('ex_rank', { ascending: true });
-  
-  await supabase.rpc('refresh_monthly_user_rankings');
+    // URLパラメータを安全に取得
+    let sid, pid;
+    try {
+      const url = new URL(location.href);
+      sid = url.searchParams.get('sid');
+      pid = url.searchParams.get('id') || sid;
+    } catch (error) {
+      console.error('URL parsing error:', error);
+      // URLSearchParamsを使用してフォールバック
+      const urlParams = new URLSearchParams(window.location.search);
+      sid = urlParams.get('sid');
+      pid = urlParams.get('id') || sid;
+    }
 
-  if (rankErr) { console.error(rankErr); return; }
+    // sidがない場合のデフォルト処理
+    if (!sid) {
+      console.log('sid パラメータがありません。デフォルト値を使用します。');
+      sid = ''; // デフォルト値または適切な値
+    }
 
-  // 月リスト生成
-  const months = [...new Set(rankRows.map(r => r.month))].sort().reverse();
-  const monthSelect = document.getElementById('monthSelect');
-  months.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = m.slice(0, 10);
-    monthSelect.appendChild(opt);
-  });
+    // pidがない場合のデフォルト処理
+    if (!pid) {
+      pid = sid; // sidをpidとして使用
+    }
 
-  const formatNumber = n => Number(n).toLocaleString();
+    const pidLabel = document.getElementById('pid');
+    if (pidLabel && pid) {
+      pidLabel.textContent = `(${pid.slice(0,8)}…)`;
+    }
 
-  function renderRanking(month) {
-    const tbody = document.getElementById('rankingBody');
-    tbody.innerHTML = '';
-    rankRows
-      .filter(r => r.month === month)
-      .filter(r => Number(r.ex_month) > 0) // ex_monthが0の行を除外
-      .sort((a, b) => a.ex_rank - b.ex_rank)
-      .forEach(r => {
+    // --- 累計グラフ取得 ---
+    const { data: cumRows, error: cumErr } = await supabase
+      .from('cumulative_totals')
+      .select('date,cumulative_balance,cumulative_ex')
+      .gte('date', '2025-05-01') // 5/1以降のデータに絞り込み
+      .order('date', { ascending: true });
+
+    if (cumErr) { console.error(cumErr); return; }
+
+    // 生配列
+    const rawLabels   = cumRows.map(r => r.date);
+    const rawBalances = cumRows.map(r => Number(r.cumulative_balance));
+    const rawCumEx    = cumRows.map(r => Number(r.cumulative_ex));
+
+    // 日次期待値 = 累積期待値の前日差分
+    const dailyEx = rawCumEx.map((v, i) => i === 0 ? v : v - rawCumEx[i - 1]);
+
+    // 期待値が 0（≒ 1e-9以内）の日は除外
+    const keepIdx = dailyEx
+      .map((v, i) => Math.abs(v) > 1e-9 ? i : -1)
+      .filter(i => i !== -1);
+
+    // フィルタ後の系列
+    const labels   = keepIdx.map(i => rawLabels[i]);
+    const balances = keepIdx.map(i => rawBalances[i]);
+    const exes     = keepIdx.map(i => rawCumEx[i]); // 表示は累積期待値のまま
+
+    // バランスはフィルタ後の先頭値でゼロ基準化
+    const initialBalance = balances.length > 0 ? balances[0] : 0;
+    const adjustedBalances = balances.map(b => b - initialBalance);
+
+    // 描画
+    new Chart(
+      document.getElementById('cumulativeChart'),
+      {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '累積収支',   data: adjustedBalances, borderWidth: 2, fill: false },
+            { label: '累積期待値', data: exes,             borderWidth: 2, fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      }
+    );
+
+    // --- 月次ランキング取得（マテビューをリフレッシュしてから取得） ---
+    await supabase.rpc('refresh_monthly_user_rankings');
+
+    const { data: rankRows, error: rankErr } = await supabase
+      .from('monthly_user_rankings')
+      .select('month,user_id,username,ex_month,ex_rank,balance_month,balance_rank')
+      .gte('month', '2025-05-01')
+      .order('month', { ascending: false })
+      .order('ex_rank', { ascending: true });
+
+    if (rankErr) { console.error(rankErr); return; }
+
+    // --- 累計用の集計（フロント側で完結） ---
+    const userTotals = {};
+    for (const r of rankRows) {
+      const uid = r.user_id;
+      if (!userTotals[uid]) {
+        userTotals[uid] = {
+          user_id: uid,
+          username: r.username,
+          ex_total: 0,
+          balance_total: 0,
+        };
+      }
+      userTotals[uid].ex_total      += Number(r.ex_month      || 0);
+      userTotals[uid].balance_total += Number(r.balance_month || 0);
+    }
+
+    const monthSelect          = document.getElementById('monthSelect');
+    const rankTypeSelect       = document.getElementById('rankType');
+    const valueHeader          = document.getElementById('valueHeader');
+
+    const totalRankTypeSelect  = document.getElementById('totalRankType');
+    const totalValueHeader     = document.getElementById('totalValueHeader');
+
+    // 月リスト生成
+    const months = [...new Set(rankRows.map(r => r.month))].sort().reverse();
+    months.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m.slice(0, 10);
+      monthSelect.appendChild(opt);
+    });
+
+    const formatNumber = n => Number(n).toLocaleString();
+
+    // --- 月次ランキング描画 ---
+    function renderRanking(month) {
+      const tbody = document.getElementById('rankingBody');
+      const rankType = rankTypeSelect.value; // "ex" or "balance"
+
+      const rankField  = rankType === 'ex' ? 'ex_rank'       : 'balance_rank';
+      const valueField = rankType === 'ex' ? 'ex_month'      : 'balance_month';
+      const headerText = rankType === 'ex' ? '月間期待値合計' : '月間収支合計';
+
+      valueHeader.textContent = headerText;
+
+      tbody.innerHTML = '';
+      rankRows
+        .filter(r => r.month === month)
+        .filter(r => Number(r[valueField]) !== 0) // 0も表示したければこの行を削除
+        .sort((a, b) => a[rankField] - b[rankField])
+        .forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${r[rankField]}</td>
+            <td>${r.username}</td>
+            <td>${formatNumber(r[valueField])}</td>`;
+          tbody.appendChild(tr);
+        });
+    }
+
+    monthSelect.addEventListener('change', e => renderRanking(e.target.value));
+    rankTypeSelect.addEventListener('change', () => {
+      if (months.length) renderRanking(months[0] || monthSelect.value);
+    });
+
+    if (months.length) {
+      monthSelect.value = months[0];
+      renderRanking(months[0]);
+    }
+
+    // --- 累計ランキング描画（合計収支 / 合計期待値） ---
+    function renderTotalRanking() {
+      const tbody = document.getElementById('totalRankingBody');
+      const rankType = totalRankTypeSelect.value; // "ex" or "balance"
+
+      const valueField = rankType === 'ex' ? 'ex_total' : 'balance_total';
+      const headerText = rankType === 'ex' ? '累計期待値' : '累計収支';
+
+      totalValueHeader.textContent = headerText;
+
+      const rows = Object.values(userTotals)
+        .filter(u => Number(u[valueField]) !== 0) // 0も表示したければ削除
+        .sort((a, b) => Number(b[valueField]) - Number(a[valueField])); // 降順
+
+      tbody.innerHTML = '';
+      rows.forEach((u, idx) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${r.ex_rank}</td>
-          <td>${r.username}</td>
-          <td>${formatNumber(r.ex_month)}</td>`;
+          <td>${idx + 1}</td>
+          <td>${u.username}</td>
+          <td>${formatNumber(u[valueField])}</td>
+        `;
         tbody.appendChild(tr);
       });
-  }
+    }
 
-  monthSelect.addEventListener('change', e => renderRanking(e.target.value));
-  if (months.length) renderRanking(months[0]);
-})();
-</script>
+    totalRankTypeSelect.addEventListener('change', renderTotalRanking);
+
+    // 初期表示は累計期待値ランキング
+    renderTotalRanking();
+  })();
+  </script>
 </body>
 </html>
