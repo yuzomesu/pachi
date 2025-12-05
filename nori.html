@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>ノリ打ち計算ツール（2～3人用）</title>
+  <title>ノリ打ち計算ツール（マルチフェーズ＋名前対応）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
@@ -12,7 +12,7 @@
       padding:16px;
       line-height:1.6;
     }
-    h1, h2, h3 {
+    h1, h2, h3, h4 {
       margin:0.4em 0;
     }
     .card {
@@ -27,7 +27,7 @@
       font-size:0.9rem;
       margin-top:4px;
     }
-    input[type="number"], select {
+    input[type="number"], select, input[type="text"] {
       width:100%;
       padding:4px 6px;
       margin-top:2px;
@@ -75,236 +75,216 @@
       font-size:0.8rem;
       color:#9ca3af;
     }
+    .phase-title {
+      margin-top:0.2em;
+      font-size:1.05rem;
+      border-bottom:1px solid #444;
+      padding-bottom:4px;
+    }
+    .member-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .member-header label {
+      margin-top:0;
+    }
   </style>
 </head>
 <body>
 
+<h1>ノリ打ち計算ツール（マルチフェーズ）</h1>
 
-
-  <!DOCTYPE html>
-  <html lang="ja">
-  <head>
-    <meta charset="UTF-8">
-    <title>ノリ打ち計算ツール（人数自由）</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background:#111;
-        color:#f5f5f5;
-        padding:16px;
-        line-height:1.6;
-      }
-      h1, h2, h3 {
-        margin:0.4em 0;
-      }
-      .card {
-        background:#1e1e1e;
-        border-radius:8px;
-        padding:12px;
-        margin-bottom:12px;
-        border:1px solid #333;
-      }
-      label {
-        display:block;
-        font-size:0.9rem;
-        margin-top:4px;
-      }
-      input[type="number"], select {
-        width:100%;
-        padding:4px 6px;
-        margin-top:2px;
-        box-sizing:border-box;
-        border-radius:4px;
-        border:1px solid #444;
-        background:#111;
-        color:#f5f5f5;
-      }
-      .row {
-        display:flex;
-        gap:8px;
-        flex-wrap:wrap;
-      }
-      .col {
-        flex:1 1 140px;
-        min-width:0;
-      }
-      button {
-        width:100%;
-        padding:10px;
-        border-radius:6px;
-        border:none;
-        font-size:1rem;
-        cursor:pointer;
-        background:#0d9488;
-        color:#fff;
-        font-weight:bold;
-        margin:8px 0 12px;
-      }
-      button:hover {
-        background:#0f766e;
-      }
-      .result-box {
-        background:#020617;
-        border-radius:8px;
-        padding:10px;
-        border:1px solid #1f2937;
-        font-size:0.9rem;
-      }
-      .result-box p {
-        margin:2px 0;
-      }
-      .small {
-        font-size:0.8rem;
-        color:#9ca3af;
-      }
-    </style>
-  </head>
-  <body>
-
-  <h1>ノリ打ち計算ツール</h1>
-
-  <!-- 0. 種別選択 -->
-  <div class="card">
-    <h2>① 種別を選択</h2>
-    <div class="row">
-      <div class="col">
-        <label for="gameType">種別</label>
-        <select id="gameType">
-          <option value="pachi">パチンコ</option>
-          <option value="slot">スロット</option>
-        </select>
-      </div>
-    </div>
-    <p class="small">※選んだ種別に応じて、以降の入力項目が切り替わります。</p>
-  </div>
-
-  <!-- ① 交換率入力 -->
-  <div class="card">
-    <h2>② 交換率</h2>
-    <div class="row">
-      <!-- スロット用 -->
-      <div class="col slot-only">
-        <label>1000円交換に必要な枚数（スロット）</label>
-        <!-- 例: 等価20円スロ → 50、5.6枚 → 56 など -->
-        <input id="slotRate" type="number" step="1" value="53">
-      </div>
-
-      <!-- パチンコ用 -->
-      <div class="col pachi-only">
-        <label>1000円交換に必要な玉数（パチンコ）</label>
-        <!-- 例: 等価 → 250、28玉交換 → 280 など -->
-        <input id="pachiRate" type="number" step="1" value="280">
-      </div>
+<!-- ① メンバー数 -->
+<div class="card">
+  <h2>① メンバー数を入力</h2>
+  <div class="row">
+    <div class="col">
+      <label for="numMembers">総メンバー数</label>
+      <input id="numMembers" type="number" step="1" min="1" value="2" inputmode="numeric">
     </div>
   </div>
+  <p class="small">
+    全フェーズを通してノリ打ち精算に参加しうる人数を入力してください。<br>
+    （後で名前を付けられます）
+  </p>
+</div>
 
-  <!-- ② 人数入力 -->
-  <div class="card">
-    <h2>③ 人数入力</h2>
-    <div class="row">
-      <div class="col">
-        <label>人数</label>
-        <input id="numPeople" type="number" step="1" min="1" value="2"inputmode="numeric">
-      </div>
-    </div>
-    <p class="small">人数を変えると、下の入力欄が自動で増減します。</p>
-  </div>
+<!-- ② メンバー名 -->
+<div class="card">
+  <h2>② メンバーの名前を入力</h2>
+  <div id="memberNameContainer"></div>
+  <p class="small">
+    空欄のままだと「人1」「人2」…として表示されます。
+  </p>
+</div>
 
-  <!-- ③ 各人の結果入力エリア（JSで動的生成） -->
-  <div class="card">
-    <h2>④ 各人の結果入力</h2>
-    <div id="peopleContainer"></div>
-  </div>
-
-  <button type="button" onclick="calc()">計算する</button>
-
-  <!-- ④ 結果表示 -->
-  <div class="card">
-    <h2>⑤ 結果</h2>
-
-    <h3>各人の収支（円換算）</h3>
-    <div class="result-box" id="eachResult">
-      <p>人数と結果を入力して「計算する」を押してください。</p>
-    </div>
-
-    <h3 style="margin-top:10px;">ノリ打ち後の均等分配</h3>
-    <div class="result-box" id="splitResult">
-      <p>合計収支：- 円</p>
-      <p>1人あたり：- 円</p>
-      <p>各人の調整額：</p>
-      <p class="small">
-        調整額がプラス＝その人が他の人に渡す金額 / マイナス＝受け取る金額<br>
-        （誰から誰に渡すかは、この調整額を見ながら決めてください）
-      </p>
+<!-- ③ フェーズ数 -->
+<div class="card">
+  <h2>③ フェーズ数を入力</h2>
+  <div class="row">
+    <div class="col">
+      <label for="numPhases">フェーズ数</label>
+      <input id="numPhases" type="number" step="1" min="1" value="1" inputmode="numeric">
     </div>
   </div>
+  <p class="small">
+    例：前半・後半の2部制なら「2」、1日3店舗回るなら「3」など。<br>
+    下にフェーズごとの設定欄（④）が増えます。
+  </p>
+</div>
 
-  <script>
-    // 数値取得（空欄は0扱い）
-    function num(id) {
-      const el = document.getElementById(id);
-      if (!el) return 0;
+<!-- ④ 各フェーズの設定（動的生成） -->
+<div id="phasesContainer"></div>
 
-      // 入力があれば、それを優先
-      if (el.value !== "") return Number(el.value);
+<!-- ⑤ 最終回収の入力 -->
+<div class="card">
+  <h2>⑤ 最終回収入力（全フェーズ終了後）</h2>
+  <div id="finalResultContainer"></div>
+  <p class="small">
+    各人が最終的に受け取った現金と、残った（または貯めた）玉数を入力してください。<br>
+    ※現時点では回収玉数は参考表示のみで、収支計算には含めていません。
+  </p>
+</div>
 
-      // ここから追加：placeholder を既定値として使う（完全に数字だけのとき）
-      const ph = el.getAttribute("placeholder");
-      if (ph && /^\d+(\.\d+)?$/.test(ph.trim())) {
-        return Number(ph.trim());
-      }
+<button type="button" onclick="calc()">⑥ すべてまとめて計算する</button>
 
-      // それ以外は 0
-      return 0;
+<!-- ⑦ 結果表示（全フェーズ合算後の各人トータル） -->
+<div class="card">
+  <h2>⑦ 各人の最終トータル収支</h2>
+
+  <h3>各人のトータル収支（各フェーズで均等分配後＋最終回収）</h3>
+  <div class="result-box" id="eachResult">
+    <p>人数・名前・フェーズ数と各フェーズの結果を入力して「⑥ すべてまとめて計算する」を押してください。</p>
+  </div>
+
+  <h3 style="margin-top:10px;">全体のサマリー</h3>
+  <div class="result-box" id="summaryResult">
+    <p>合計収支：- 円</p>
+  </div>
+</div>
+
+<!-- ⑧ 各フェーズごとの収支 -->
+<div class="card">
+  <h2>⑧ 各フェーズごとの収支（生の収支 → 均等分配後）</h2>
+  <div class="result-box" id="phaseDetailResult">
+    <p>「⑥ すべてまとめて計算する」を押すと、ここに各フェーズごとの収支が表示されます。</p>
+  </div>
+</div>
+
+<script>
+  // 数値取得（空欄は 0、数字だけの placeholder があればそれを既定値として使用）
+  function num(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+
+    if (el.value !== "") return Number(el.value);
+
+    const ph = el.getAttribute("placeholder");
+    if (ph && /^[-+]?\d+(\.\d+)?$/.test(ph.trim())) {
+      return Number(ph.trim());
     }
+    return 0;
+  }
 
+  // 四捨五入
+  function prec(v, digits = 0) {
+    const p = Math.pow(10, digits);
+    return Math.round(v * p) / p;
+  }
 
-    // 四捨五入
-    function prec(v, digits = 0) {
-      const p = Math.pow(10, digits);
-      return Math.round(v * p) / p;
+  // メンバー名取得（空なら「人i」）
+  function getMemberName(i) {
+    const el = document.getElementById(`memberName_${i}`);
+    if (!el) return `人${i}`;
+    const v = el.value.trim();
+    return v !== "" ? v : `人${i}`;
+  }
+
+  // メンバー名入力欄を生成
+  function buildMemberNames() {
+    const container = document.getElementById("memberNameContainer");
+    const nMembers = Math.max(1, num("numMembers"));
+
+    container.innerHTML = "";
+
+    for (let i = 1; i <= nMembers; i++) {
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `
+        <div class="col">
+          <label>人${i} の名前</label>
+          <input id="memberName_${i}" type="text" placeholder="人${i}">
+        </div>
+      `;
+      container.appendChild(div);
     }
+  }
 
-    function getGameType() {
-      return document.getElementById("gameType").value; // "slot" or "pachi"
+  function getGameType(phase) {
+    const sel = document.getElementById(`phase${phase}_gameType`);
+    return sel ? sel.value : "pachi";
+  }
+
+  // 種別に応じた表示切替（フェーズごと）
+  function updateGameTypeVisibility(phase) {
+    const type = getGameType(phase);
+    const wrapper = document.getElementById(`phase${phase}_wrapper`);
+    if (!wrapper) return;
+
+    wrapper.querySelectorAll(".slot-only").forEach(el => {
+      el.style.display = (type === "slot") ? "" : "none";
+    });
+    wrapper.querySelectorAll(".pachi-only").forEach(el => {
+      el.style.display = (type === "pachi") ? "" : "none";
+    });
+  }
+
+  // 個別メンバーの「参加／不参加」によるUI表示制御
+  function updateMemberActiveUI(phase, i) {
+    const checkbox = document.getElementById(`phase${phase}_member${i}_active`);
+    const details  = document.getElementById(`phase${phase}_member${i}_details`);
+    if (!checkbox || !details) return;
+
+    if (checkbox.checked) {
+      details.style.display = "";
+    } else {
+      details.style.display = "none";
     }
+  }
 
-    // 種別に応じて表示/非表示切り替え
-    function updateGameTypeVisibility() {
-      const type = getGameType();
-      document.querySelectorAll(".slot-only").forEach(el => {
-        el.style.display = (type === "slot") ? "" : "none";
-      });
-      document.querySelectorAll(".pachi-only").forEach(el => {
-        el.style.display = (type === "pachi") ? "" : "none";
-      });
-    }
+  // 1フェーズ分の「各人入力欄」を生成（グローバルなメンバー数を使う）
+  function buildPeopleInputsForPhase(phase) {
+    const container = document.getElementById(`phase${phase}_peopleContainer`);
+    if (!container) return;
 
-    // 人数に応じて入力欄を作る
-    function buildPeopleInputs() {
-      const container = document.getElementById("peopleContainer");
-      const n = Math.max(1, num("numPeople"));
-      const type = getGameType();
+    const nMembers = Math.max(1, num("numMembers"));
+    container.innerHTML = "";
 
-      container.innerHTML = "";
+    for (let i = 1; i <= nMembers; i++) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "card";
+      wrapper.style.marginBottom = "8px";
 
-      for (let i = 1; i <= n; i++) {
-        const wrapper = document.createElement("div");
-        wrapper.className = "card";
+      const activeId  = `phase${phase}_member${i}_active`;
+      const detailsId = `phase${phase}_member${i}_details`;
+      const nameLabel = getMemberName(i);
 
-        // 共通部分＋種別ごとの入力欄をまとめて書く
-        wrapper.innerHTML = `
-          <h3>人${i}</h3>
+      wrapper.innerHTML = `
+        <div class="member-header">
+          <h3>フェーズ${phase}：${nameLabel}</h3>
+          <label style="display:flex;align-items:center;gap:4px;">
+            <input id="${activeId}" type="checkbox" checked>
+            <span style="font-size:0.85rem;">このフェーズに参加</span>
+          </label>
+        </div>
+
+        <div id="${detailsId}">
           <div class="row">
             <div class="col">
               <label>現金投資（円）</label>
-              <input id="p${i}_cashInvest" type="number"inputmode="decimal" placeholder="0">
-            </div>
-            <div class="col">
-              <label>回収金額（円）</label>
-              <input id="p${i}_cashPayout" type="number"inputmode="decimal" placeholder="0">
-              
+              <input id="p${phase}_${i}_cashInvest" type="number" inputmode="decimal" placeholder="0">
             </div>
           </div>
 
@@ -312,11 +292,11 @@
           <div class="row slot-only">
             <div class="col">
               <label>再プレイで使ったメダル（枚）</label>
-              <input id="p${i}_replayMedals" type="number"inputmode="decimal" placeholder="0">
+              <input id="p${phase}_${i}_replayMedals" type="number" inputmode="decimal" placeholder="0">
             </div>
             <div class="col">
               <label>貯メダルした枚数（枚）</label>
-              <input id="p${i}_savedMedals" type="number"inputmode="decimal" placeholder="0">
+              <input id="p${phase}_${i}_savedMedals" type="number" inputmode="decimal" placeholder="0">
             </div>
           </div>
 
@@ -324,112 +304,341 @@
           <div class="row pachi-only">
             <div class="col">
               <label>再プレイで使った玉数（玉）</label>
-              <input id="p${i}_replayBalls" type="number"inputmode="decimal" placeholder="0">
+              <input id="p${phase}_${i}_replayBalls" type="number" inputmode="decimal" placeholder="0">
             </div>
             <div class="col">
-              <label>貯玉した玉数（玉）</label>
-              <input id="p${i}_savedBalls" type="number"inputmode="decimal" placeholder="0">
+              <label>回収玉数（玉）</label>
+              <input id="p${phase}_${i}_payoutBalls" type="number" inputmode="decimal" placeholder="0">
             </div>
           </div>
-        `;
+        </div>
+      `;
 
-        container.appendChild(wrapper);
-      }
+      container.appendChild(wrapper);
 
-      // 新しく作った要素にも効かせるため、ここでも表示切り替え
-      updateGameTypeVisibility();
+      // 参加チェックの制御
+      const checkbox = document.getElementById(activeId);
+      checkbox.addEventListener("change", () => updateMemberActiveUI(phase, i));
+      // 初期状態を反映
+      updateMemberActiveUI(phase, i);
     }
 
-    // 1人分の収支計算（円）
-    function calcPerson(i, gameType, slotYenPerUnit, pachiYenPerUnit) {
-      const cashInvest   = num(`p${i}_cashInvest`);
-      const cashPayout   = num(`p${i}_cashPayout`);
-      const replayMedals = num(`p${i}_replayMedals`);
-      const savedMedals  = num(`p${i}_savedMedals`);
-      const replayBalls  = num(`p${i}_replayBalls`);
-      const savedBalls   = num(`p${i}_savedBalls`);
+    // 新しく作った要素にも種別表示切り替えを適用
+    updateGameTypeVisibility(phase);
+  }
 
-      let result = cashPayout - cashInvest;
+  // フェーズ全体を作り直す
+  function buildPhases() {
+    const container = document.getElementById("phasesContainer");
+    const nPhases = Math.max(1, num("numPhases"));
 
-      if (gameType === "slot") {
-        // スロット：メダルのみ使用
-        result += savedMedals * slotYenPerUnit;
-        result -= replayMedals * slotYenPerUnit;
-      } else {
-        // パチンコ：玉のみ使用
-        result += savedBalls * pachiYenPerUnit;
-        result -= replayBalls * pachiYenPerUnit;
-      }
+    container.innerHTML = "";
 
-      return prec(result, 0);
+    for (let phase = 1; phase <= nPhases; phase++) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "card";
+      wrapper.id = `phase${phase}_wrapper`;
+
+      wrapper.innerHTML = `
+        <h2 class="phase-title">フェーズ${phase}</h2>
+
+        <!-- 種別 -->
+        <div class="row">
+          <div class="col">
+            <label for="phase${phase}_gameType">種別</label>
+            <select id="phase${phase}_gameType">
+              <option value="pachi">パチンコ</option>
+              <option value="slot">スロット</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 交換率 -->
+        <div class="row" style="margin-top:8px;">
+          <div class="col slot-only">
+            <label>1000円交換に必要な枚数（スロット）</label>
+            <input id="phase${phase}_slotRate" type="number" step="1" value="53" inputmode="numeric">
+          </div>
+          <div class="col pachi-only">
+            <label>1000円交換に必要な玉数（パチンコ）</label>
+            <input id="phase${phase}_pachiRate" type="number" step="1" value="280" inputmode="numeric">
+          </div>
+        </div>
+
+        <!-- 各人の結果入力 -->
+        <div style="margin-top:8px;">
+          <h3>各人の結果入力（参加メンバーをチェック）</h3>
+          <div id="phase${phase}_peopleContainer"></div>
+        </div>
+      `;
+
+      container.appendChild(wrapper);
+
+      // 種別変更で表示切替
+      const gameTypeSelect = document.getElementById(`phase${phase}_gameType`);
+      gameTypeSelect.addEventListener("change", () => {
+        updateGameTypeVisibility(phase);
+      });
+
+      // 人入力欄生成
+      buildPeopleInputsForPhase(phase);
+      updateGameTypeVisibility(phase);
+    }
+  }
+
+  // 最終回収入力欄（人ごと）を作成
+  function buildFinalInputs() {
+    const container = document.getElementById("finalResultContainer");
+    const nMembers = Math.max(1, num("numMembers"));
+    container.innerHTML = "";
+
+    for (let i = 1; i <= nMembers; i++) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "card";
+      wrapper.style.marginBottom = "8px";
+
+      const nameLabel = getMemberName(i);
+
+      wrapper.innerHTML = `
+        <h3>${nameLabel} の最終回収</h3>
+        <div class="row">
+          <div class="col">
+            <label>最終回収金額（円）</label>
+            <input id="final_cash_${i}" type="number" inputmode="decimal" placeholder="0">
+          </div>
+          <div class="col">
+            <label>最終回収玉数（玉）</label>
+            <input id="final_balls_${i}" type="number" inputmode="decimal" placeholder="0">
+          </div>
+        </div>
+      `;
+
+      container.appendChild(wrapper);
+    }
+  }
+
+  // 1人分の収支計算（円） - フェーズ＆メンバーインデックス付き
+  function calcPerson(phase, i, gameType, slotYenPerUnit, pachiYenPerUnit) {
+    const cashInvest   = num(`p${phase}_${i}_cashInvest`);
+    const replayMedals = num(`p${phase}_${i}_replayMedals`);
+    const savedMedals  = num(`p${phase}_${i}_savedMedals`);
+    const replayBalls  = num(`p${phase}_${i}_replayBalls`);
+    const payoutBalls  = num(`p${phase}_${i}_payoutBalls`);
+
+    // フェーズ時点での「生の収支」（現金回収はここでは扱わない）
+    let result = -cashInvest;
+
+    if (gameType === "slot") {
+      // スロット：メダルの純増減を円換算
+      result += savedMedals * slotYenPerUnit;
+      result -= replayMedals * slotYenPerUnit;
+    } else {
+      // パチンコ：回収玉数と再プレイ玉数の差分を円換算
+      result += payoutBalls * pachiYenPerUnit;
+      result -= replayBalls * pachiYenPerUnit;
     }
 
-    function calc() {
-      const n = Math.max(1, num("numPeople"));
-      const gameType = getGameType();
+    return prec(result, 0);
+  }
 
-      // 1000円あたり枚数/玉数 → 1枚(玉)あたりの円へ変換
-      const slotPer1000  = num("slotRate");   // 例: 53枚
-      const pachiPer1000 = num("pachiRate");  // 例: 280玉
+  // ⑥ 全フェーズまとめて計算（各フェーズで均等分配 → 最後に各人の和）
+  function calc() {
+    const nPhases  = Math.max(1, num("numPhases"));
+    const nMembers = Math.max(1, num("numMembers"));
+
+    // 各人の最終トータル収支（各フェーズで均等分配後＋最終回収）
+    let finalNet = new Array(nMembers).fill(0);
+    let everActive = new Array(nMembers).fill(false);
+
+    // 各フェーズ・各人の「生の収支」「分配後」「差額」「参加フラグ」
+    let perPhaseRaw    = Array.from({ length: nPhases }, () => new Array(nMembers).fill(0));
+    let perPhaseShare  = Array.from({ length: nPhases }, () => new Array(nMembers).fill(0));
+    let perPhaseAdj    = Array.from({ length: nPhases }, () => new Array(nMembers).fill(0));
+    let perPhaseActive = Array.from({ length: nPhases }, () => new Array(nMembers).fill(false));
+    let perPhaseTotal  = new Array(nPhases).fill(0);
+    let perPhasePerHead= new Array(nPhases).fill(0);
+
+    // --- 各フェーズごとの計算 ---
+    for (let phase = 1; phase <= nPhases; phase++) {
+      const gameType = getGameType(phase);
+
+      // 1000円あたり → 1枚(玉)あたりの円
+      const slotPer1000  = num(`phase${phase}_slotRate`);
+      const pachiPer1000 = num(`phase${phase}_pachiRate`);
 
       const slotYenPerUnit  = slotPer1000  > 0 ? (1000 / slotPer1000)  : 0;
       const pachiYenPerUnit = pachiPer1000 > 0 ? (1000 / pachiPer1000) : 0;
 
-      const nets = [];
-      let total = 0;
+      const rawArr   = new Array(nMembers).fill(0);
+      const shareArr = new Array(nMembers).fill(0);
+      const adjArr   = new Array(nMembers).fill(0);
+      const activeArr= perPhaseActive[phase - 1];
 
-      for (let i = 1; i <= n; i++) {
-        const net = calcPerson(i, gameType, slotYenPerUnit, pachiYenPerUnit);
-        nets.push(net);
-        total += net;
+      const activeIdx = [];
+
+      for (let i = 1; i <= nMembers; i++) {
+        const checkbox = document.getElementById(`phase${phase}_member${i}_active`);
+        const isActive = checkbox && checkbox.checked;
+        const idx = i - 1;
+
+        if (!isActive) {
+          activeArr[idx] = false;
+          continue;
+        }
+
+        const net = calcPerson(phase, i, gameType, slotYenPerUnit, pachiYenPerUnit);
+        rawArr[idx] = net;
+        activeArr[idx] = true;
+        activeIdx.push(idx);
+        everActive[idx] = true;
       }
 
-      // 各人の収支表示
-      const eachBox = document.getElementById("eachResult");
-      let html = "";
-      for (let i = 0; i < n; i++) {
-        html += `<p>人${i + 1}：${nets[i].toLocaleString()} 円</p>`;
-      }
-      html += `<p class="small">※貯メダル / 貯玉 / 再プレイも円換算した収支です（${gameType === "slot" ? "スロット" : "パチンコ"}）。</p>`;
-      eachBox.innerHTML = html;
+      perPhaseRaw[phase - 1] = rawArr;
 
-      // 均等割り
-      const splitBox = document.getElementById("splitResult");
-      const perPerson = prec(total / n, 0);
-
-      let adjHtml = "";
-      for (let i = 0; i < n; i++) {
-        const adjust = prec(nets[i] - perPerson, 0);
-        adjHtml += `<p>人${i + 1} の調整額：${adjust.toLocaleString()} 円</p>`;
+      if (activeIdx.length === 0) {
+        // このフェーズ参加者なし
+        perPhaseTotal[phase - 1]   = 0;
+        perPhasePerHead[phase - 1] = 0;
+        perPhaseShare[phase - 1]   = shareArr;
+        perPhaseAdj[phase - 1]     = adjArr;
+        continue;
       }
 
-      splitBox.innerHTML =
-        `<p>合計収支：${total.toLocaleString()} 円</p>` +
-        `<p>1人あたり：${perPerson.toLocaleString()} 円</p>` +
-        adjHtml +
-        `<p class="small">
-          調整額がプラス＝その人が他の人に渡す金額 / マイナス＝受け取る金額<br>
-        </p>`;
+      // このフェーズ全体の合計
+      let phaseTotal = 0;
+      for (const idx of activeIdx) {
+        phaseTotal += rawArr[idx];
+      }
+      perPhaseTotal[phase - 1] = phaseTotal;
+
+      // このフェーズの参加メンバー内で均等分配
+      const perHead = prec(phaseTotal / activeIdx.length, 0);
+      perPhasePerHead[phase - 1] = perHead;
+
+      for (const idx of activeIdx) {
+        shareArr[idx] = perHead;
+        adjArr[idx]   = prec(rawArr[idx] - perHead, 0); // プラス：払い／マイナス：受け取り
+        finalNet[idx] += perHead; // 各人のトータルに「フェーズごとの均等分配後の取り分」を加算
+      }
+
+      perPhaseShare[phase - 1] = shareArr;
+      perPhaseAdj[phase - 1]   = adjArr;
     }
 
-    // 初期表示＋イベント設定
-    document.addEventListener("DOMContentLoaded", () => {
-      // 初期の入力欄生成
-      buildPeopleInputs();
+    // --- 最終回収金額を各人の収支に加算 ---
+    for (let i = 0; i < nMembers; i++) {
+      const fc = num(`final_cash_${i + 1}`);
+      if (fc !== 0) {
+        finalNet[i] += fc;
+        everActive[i] = true; // 最終回収がある人も「対象」とみなす
+      }
+    }
 
-      // 人数変更で入力欄を再生成
-      document.getElementById("numPeople").addEventListener("input", buildPeopleInputs);
+    // 一度も参加しておらず、最終回収もないメンバーを除いたインデックス
+    const activeIndices = [];
+    for (let i = 0; i < nMembers; i++) {
+      if (everActive[i]) activeIndices.push(i);
+    }
 
-      // 種別変更で表示切り替え＆入力欄再生成
-      document.getElementById("gameType").addEventListener("change", () => {
-        updateGameTypeVisibility();
-        buildPeopleInputs();
-      });
+    if (activeIndices.length === 0) {
+      alert("どのフェーズにも参加しておらず、最終回収も入力されていません。少なくとも1人は入力してください。");
+      return;
+    }
 
-      // 初回の表示切り替え
-      updateGameTypeVisibility();
+    const totalAll = finalNet.reduce((a, b) => a + b, 0);
+
+    // --- ⑦ 各人のトータル収支表示 ---
+    const eachBox = document.getElementById("eachResult");
+    let html = "";
+    for (let i = 0; i < nMembers; i++) {
+      const name = getMemberName(i + 1);
+      const net  = finalNet[i];
+      const fc   = num(`final_cash_${i + 1}`);
+      const note = everActive[i] ? "" : ' <span class="small">（全フェーズ不参加＆回収なし）</span>';
+
+      let extra = "";
+      if (fc !== 0) {
+        extra = `（最終回収金額を含む）`;
+      }
+
+      html += `<p>${name}：${net.toLocaleString()} 円 ${extra}${note}</p>`;
+    }
+    html += `<p class="small">
+      各フェーズごとに「そのフェーズに参加したメンバー内」で均等分配した後の合計です。<br>
+      追加の精算が必要な場合は、下のフェーズ別一覧の「差額」を参考にしてください。
+    </p>`;
+    eachBox.innerHTML = html;
+
+    // --- ⑦ 全体サマリー ---
+    const summaryBox = document.getElementById("summaryResult");
+    summaryBox.innerHTML =
+      `<p>合計収支（全員の最終トータルの合計）：${totalAll.toLocaleString()} 円</p>` +
+      `<p class="small">（理論上は店側に抜かれた分などを含んで、全員の和がこの値になります）</p>`;
+
+    // --- ⑧ 各フェーズごとの詳細表示 ---
+    const phaseDetailBox = document.getElementById("phaseDetailResult");
+    let pdHtml = "";
+
+    for (let phase = 1; phase <= nPhases; phase++) {
+      const rawArr   = perPhaseRaw[phase - 1];
+      const shareArr = perPhaseShare[phase - 1];
+      const adjArr   = perPhaseAdj[phase - 1];
+      const activeArr= perPhaseActive[phase - 1];
+
+      pdHtml += `<h4>フェーズ${phase}</h4>`;
+
+      const hasAny = activeArr.some(v => v);
+      if (!hasAny) {
+        pdHtml += `<p class="small">このフェーズには参加者がいません。</p>`;
+        continue;
+      }
+
+      pdHtml += `<p class="small">
+        フェーズ合計：${perPhaseTotal[phase - 1].toLocaleString()} 円 /
+        1人あたり：${perPhasePerHead[phase - 1].toLocaleString()} 円（参加メンバー内で均等）
+      </p>`;
+
+      for (let i = 0; i < nMembers; i++) {
+        const name = getMemberName(i + 1);
+        if (!activeArr[i]) {
+          pdHtml += `<p>${name}：- （不参加）</p>`;
+        } else {
+          const raw   = rawArr[i];
+          const share = shareArr[i];
+          const adj   = adjArr[i];
+          pdHtml += `<p>
+            ${name}：
+            生の収支 ${raw.toLocaleString()} 円 →
+            均等分配後 ${share.toLocaleString()} 円
+            （差額 ${adj.toLocaleString()} 円）
+          </p>`;
+        }
+      }
+    }
+
+    phaseDetailBox.innerHTML = pdHtml;
+  }
+
+  // 初期表示
+  document.addEventListener("DOMContentLoaded", () => {
+    // 名前入力欄生成
+    buildMemberNames();
+    // フェーズ欄生成
+    buildPhases();
+    // 最終回収欄生成
+    buildFinalInputs();
+
+    // フェーズ数変更で再生成
+    document.getElementById("numPhases").addEventListener("input", buildPhases);
+
+    // メンバー数変更で名前・フェーズ・最終回収欄を再生成
+    document.getElementById("numMembers").addEventListener("input", () => {
+      buildMemberNames();
+      buildPhases();
+      buildFinalInputs();
     });
-  </script>
+  });
+</script>
 
-  </body>
-  </html>
+</body>
+</html>
