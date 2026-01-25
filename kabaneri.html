@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>独立セッションカウンター（縦並び）</title>
+  <style>
+    :root { --b:#e5e7eb; --t:#111827; --m:#6b7280; --w:#f59e0b; --d:#ef4444; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--t); margin:0; background:#fafafa; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    .card { background:#fff; border:1px solid var(--b); border-radius: 12px; padding: 14px; margin: 12px 0; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+    label { font-size: 13px; color:var(--m); display:block; margin-bottom:6px; }
+    select {
+      border:1px solid var(--b); border-radius:10px; padding:10px 12px; font-size:14px; background:#fff;
+    }
+    .btn {
+      border:1px solid var(--b); background:#fff; border-radius:12px;
+      padding:10px 12px; cursor:pointer; font-size:14px; white-space:nowrap;
+    }
+    .btn:hover { background:#f3f4f6; }
+    .btn.primary { background:#111827; color:#fff; border-color:#111827; }
+    .btn.primary:hover { background:#0b1220; }
+    .btn.warn { border-color: var(--w); }
+    .btn.warn:hover { background:#fffbeb; }
+    .btn.danger { border-color: var(--d); }
+    .btn.danger:hover { background:#fef2f2; }
+    .btn.small { padding:6px 10px; font-size:12px; border-radius:10px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+    .event { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .event .meta { display:flex; flex-direction:column; gap:2px; }
+    .event .name { font-weight:600; }
+    .event .pt { font-size:12px; color:var(--m); }
+    .event .count { font-variant-numeric: tabular-nums; min-width: 3ch; text-align:right; }
+    .kpi { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top:10px; }
+    .kpi .box { border:1px solid var(--b); border-radius:12px; padding: 10px 12px; background:#fff; }
+    .kpi .key { font-size:12px; color:var(--m); }
+    .kpi .val { font-size:18px; font-weight:700; margin-top:2px; font-variant-numeric: tabular-nums; }
+    .muted { color:var(--m); font-size:12px; }
+    .status { font-size:12px; color:#b45309; margin-top:8px; display:none; }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { border-bottom:1px solid var(--b); padding:10px 6px; text-align:left; font-size:13px; }
+    th { color:var(--m); font-weight:600; }
+    .right { text-align:right; font-variant-numeric: tabular-nums; }
+    .sysHeader { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .pill { display:inline-block; padding:2px 10px; border:1px solid var(--b); border-radius:999px; font-size:12px; color:var(--m); }
+    .logbox { border:1px solid var(--b); border-radius:12px; padding:10px 12px; background:#fff; margin-top:12px; }
+    .loglist { margin:6px 0 0; padding-left: 18px; }
+    .loglist li { font-size:12px; color:var(--t); line-height:1.6; }
+    .loglist li span { color:var(--m); margin-right:8px; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>独立セッションカウンター（縦並び）</h1>
+
+    <div class="card">
+      <div class="sysHeader">
+        <div>
+          <div style="font-weight:700;">全体指標</div>
+          <div class="muted">無名/生駒/美馬 の全履歴を合算した ΣY / ΣX を表示します。</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="muted">全体 ΣY / ΣX</div>
+          <div style="font-size:22px; font-weight:800; font-variant-numeric: tabular-nums;" id="totalRatio">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panels"></div>
+
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:6px;">参考比率</div>
+      <div style="font-size:14px; line-height:1.8;">
+        <div>設定1-3：比率 84.7%</div>
+        <div>設定4　：比率 71.8%</div>
+        <div>設定5-6：比率 62.6%</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // 系統名（表示用）
+  const SYS_NAME = { A: "無名", B: "生駒", C: "美馬" };
+
+  // イベント定義
+  const EVENT_DEFS = [
+    { key: "n1",  name: "通常 単独 発光なし", pt: 1  },
+    { key: "n15", name: "通常 単独 発光あり", pt: 15 },
+    { key: "nc",  name: "通常 複合",         pt: 15 },
+    { key: "na",  name: "通常 オール",         pt: 30 },
+    { key: "h1",  name: "高確率 単独",         pt: 15 },
+    { key: "hc",  name: "高確率 複合",         pt: 30 },
+    { key: "ha",  name: "高確率 オール",       pt: 60 },
+  ];
+
+  // X定義（系統ごと）
+  const X_TABLE_NON = { A: 108, B: 105, C: 102 };
+  const X_FAV = 48;
+
+  // state（A/B/Cが独立）
+  const makeCounts = () => Object.fromEntries(EVENT_DEFS.map(e => [e.key, 0]));
+  const state = {
+    A: { fav: "non", base: makeCounts(), pending: makeCounts(), carry: makeCounts(), omen:false, history: [], log: [], logSeq: 0, lastCarryIn: makeCounts() },
+    B: { fav: "non", base: makeCounts(), pending: makeCounts(), carry: makeCounts(), omen:false, history: [], log: [], logSeq: 0, lastCarryIn: makeCounts() },
+    C: { fav: "non", base: makeCounts(), pending: makeCounts(), carry: makeCounts(), omen:false, history: [], log: [], logSeq: 0, lastCarryIn: makeCounts() },
+  };
+
+  // utils
+  const yOf = (c) => EVENT_DEFS.reduce((s, e) => s + c[e.key] * e.pt, 0);
+
+  const addCounts = (to, from) => {
+    for (const k of Object.keys(to)) to[k] += from[k];
+  };
+
+  const clearCounts = (c) => {
+    for (const k of Object.keys(c)) c[k] = 0;
+  };
+
+  const cloneCounts = (c) => Object.fromEntries(Object.entries(c).map(([k,v]) => [k, v]));
+
+  const formatRatio = (r) => Number.isFinite(r) ? r.toFixed(4) : "-";
+
+  const getX = (sys, fav) => (fav === "yes") ? X_FAV : X_TABLE_NON[sys];
+
+  function calcGlobalTotalRatio() {
+    let sumY = 0;
+    let sumX = 0;
+    for (const sys of ["A","B","C"]) {
+      for (const h of state[sys].history) {
+        sumY += h.Y;
+        sumX += h.X;
+      }
+    }
+    return sumX === 0 ? "-" : (sumY / sumX).toFixed(4);
+  }
+
+  function pushLog(sys, text) {
+    const s = state[sys];
+    s.logSeq += 1;
+    s.log.push({ n: s.logSeq, text });
+  }
+
+  function resetLog(sys) {
+    const s = state[sys];
+    s.log = [];
+    s.logSeq = 0;
+  }
+
+  // DOM builders
+  const panelsEl = document.getElementById("panels");
+  const totalRatioEl = document.getElementById("totalRatio");
+
+  function panelId(sys, name) { return `${sys}-${name}`; }
+
+  function buildPanel(sys) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = panelId(sys, "panel");
+
+    card.innerHTML = `
+      <div class="sysHeader">
+        <h2>${SYS_NAME[sys]} <span class="pill">独立セッション</span></h2>
+        <div class="muted">X（非優遇）: ${X_TABLE_NON[sys]} / 優遇: 48</div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>優遇</label>
+          <select id="${panelId(sys,"fav")}">
+             <option value="yes">優遇</option>
+            <option value="non">非優遇</option>
+          </select>
+        </div>
+
+        <div>
+          <label>前兆</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn warn" id="${panelId(sys,"omenStart")}">前兆発生</button>
+            <button class="btn danger" id="${panelId(sys,"omenFail")}">前兆失敗</button>
+            <button class="btn primary" id="${panelId(sys,"omenSuccess")}">前兆成功(cz)</button>
+          </div>
+        </div>
+
+        <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="${panelId(sys,"reset")}">セッションリセット</button>
+          <button class="btn primary" id="${panelId(sys,"end")}">セッション終了（計算）</button>
+        </div>
+      </div>
+
+      <div class="status" id="${panelId(sys,"omenStatus")}"></div>
+
+      <div class="grid" id="${panelId(sys,"events")}" style="margin-top:12px;"></div>
+
+      <div class="kpi">
+        <div class="box">
+          <div class="key">Y（現セッション：確定分）</div>
+          <div class="val" id="${panelId(sys,"sumY")}">0</div>
+        </div>
+        <div class="box">
+          <div class="key">保留Y（前兆中）</div>
+          <div class="val" id="${panelId(sys,"pendingY")}">0</div>
+        </div>
+        <div class="box">
+          <div class="key">X（現セッション：終了時に確定）</div>
+          <div class="val" id="${panelId(sys,"valX")}">-</div>
+        </div>
+        <div class="box">
+          <div class="key">Y / X（現セッション）</div>
+          <div class="val" id="${panelId(sys,"ratio")}">-</div>
+        </div>
+        <div class="box">
+          <div class="key">${SYS_NAME[sys]} ΣY / ΣX</div>
+          <div class="val" id="${panelId(sys,"sysTotal")}">-</div>
+        </div>
+      </div>
+
+      <div class="logbox">
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:700;">このセッションの操作ログ（時系列）</div>
+            <div class="muted">セッション終了またはリセットでクリアされます。</div>
+          </div>
+          <button class="btn small" id="${panelId(sys,"clearLog")}">ログを消す</button>
+        </div>
+        <ol class="loglist" id="${panelId(sys,"log")}">
+          <li class="muted">まだ操作がありません。</li>
+        </ol>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div style="font-weight:700;">履歴（${SYS_NAME[sys]}）</div>
+        <div class="muted">セッション終了時点の Y, X, Y/X を記録します。行単位で削除できます。</div>
+
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="right">Y</th>
+                <th class="right">X</th>
+                <th class="right">Y/X</th>
+                <th class="right">持込Y</th>
+                <th class="right">持出Y</th>
+                <th class="right">削除</th>
+              </tr>
+            </thead>
+            <tbody id="${panelId(sys,"history")}">
+              <tr><td colspan="7" class="muted">まだ履歴がありません。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    panelsEl.appendChild(card);
+
+    // イベント一覧生成
+    const eventsEl = document.getElementById(panelId(sys,"events"));
+    for (const e of EVENT_DEFS) {
+      const row = document.createElement("div");
+      row.className = "event";
+      row.innerHTML = `
+        <div class="meta">
+          <div class="name">${e.name}</div>
+          <div class="pt">${e.pt} pt / 回</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn" data-sys="${sys}" data-action="dec" data-key="${e.key}">-</button>
+          <div class="count" id="${panelId(sys, "count-"+e.key)}">0</div>
+          <button class="btn" data-sys="${sys}" data-action="inc" data-key="${e.key}">+</button>
+        </div>
+      `;
+      eventsEl.appendChild(row);
+    }
+
+    // イベントクリック（委譲）
+    eventsEl.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button");
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const key = btn.dataset.key;
+      if (!action || !key) return;
+
+      const s = state[sys];
+      const target = s.omen ? s.pending : s.base;
+
+      if (action === "inc") {
+        target[key] += 1;
+        pushLog(sys, `+1: ${key}`);
+      }
+      if (action === "dec") {
+        target[key] = Math.max(0, target[key] - 1);
+        pushLog(sys, `-1: ${key}`);
+      }
+
+      refreshPanel(sys);
+    });
+
+    // 優遇
+    const favSel = document.getElementById(panelId(sys,"fav"));
+    favSel.value = state[sys].fav;
+    favSel.addEventListener("change", () => {
+      state[sys].fav = favSel.value;
+      pushLog(sys, `優遇変更: ${favSel.value === "yes" ? "優遇" : "非優遇"}`);
+    });
+
+    // ログクリア（任意）
+    document.getElementById(panelId(sys,"clearLog")).addEventListener("click", () => {
+      resetLog(sys);
+      refreshPanel(sys);
+    });
+
+    // 前兆ボタン
+    document.getElementById(panelId(sys,"omenStart")).addEventListener("click", () => {
+      const s = state[sys];
+      if (s.omen) { alert(`${SYS_NAME[sys]}はすでに前兆中です。失敗/成功で確定してください。`); return; }
+      s.omen = true;
+      pushLog(sys, "前兆発生");
+      refreshPanel(sys);
+    });
+
+    document.getElementById(panelId(sys,"omenFail")).addEventListener("click", () => {
+      const s = state[sys];
+      if (!s.omen) { alert(`${SYS_NAME[sys]}は前兆中ではありません（前兆発生を先に押してください）。`); return; }
+      addCounts(s.base, s.pending);
+      clearCounts(s.pending);
+      s.omen = false;
+      pushLog(sys, "前兆失敗（保留→確定に合算）");
+      refreshPanel(sys);
+    });
+
+    document.getElementById(panelId(sys,"omenSuccess")).addEventListener("click", () => {
+      const s = state[sys];
+      if (!s.omen) { alert(`${SYS_NAME[sys]}は前兆中ではありません（前兆発生を先に押してください）。`); return; }
+      addCounts(s.carry, s.pending);
+      clearCounts(s.pending);
+      s.omen = false;
+      pushLog(sys, "前兆成功(cz)（保留→次セッションへ持ち越し）");
+      refreshPanel(sys);
+    });
+
+    // セッション終了
+    document.getElementById(panelId(sys,"end")).addEventListener("click", () => {
+      const s = state[sys];
+
+      if (s.omen || yOf(s.pending) > 0) {
+        alert(`${SYS_NAME[sys]}: 前兆中（保留）が残っています。前兆失敗/成功で確定してから終了してください。`);
+        return;
+      }
+
+      const Y = yOf(s.base);
+      const X = getX(sys, s.fav);
+      const r = Y / X;
+
+      const carryInY = yOf(s.lastCarryIn ?? makeCounts());
+      const carryOutY = yOf(s.carry);
+
+      s.history.push({ Y, X, r, carryInY, carryOutY });
+
+      document.getElementById(panelId(sys,"valX")).textContent = X;
+      document.getElementById(panelId(sys,"ratio")).textContent = formatRatio(r);
+
+      pushLog(sys, `セッション終了: Y=${Y}, X=${X}, Y/X=${formatRatio(r)}`);
+
+      // 次セッションへ
+      clearCounts(s.base);
+      clearCounts(s.pending);
+      s.omen = false;
+
+      s.lastCarryIn = cloneCounts(s.carry);
+      addCounts(s.base, s.carry);
+      clearCounts(s.carry);
+
+      // セッションごとにログをリセット（要件2）
+      resetLog(sys);
+
+      refreshPanel(sys);
+    });
+
+    // リセット
+    document.getElementById(panelId(sys,"reset")).addEventListener("click", () => {
+      const s = state[sys];
+      if (s.omen || yOf(s.pending) > 0) {
+        alert(`${SYS_NAME[sys]}: 前兆中（保留）が残っています。前兆失敗/成功で確定してからリセットしてください。`);
+        return;
+      }
+
+      clearCounts(s.base);
+      clearCounts(s.pending);
+      s.omen = false;
+
+      s.lastCarryIn = cloneCounts(s.carry);
+      addCounts(s.base, s.carry);
+      clearCounts(s.carry);
+
+      document.getElementById(panelId(sys,"valX")).textContent = "-";
+      document.getElementById(panelId(sys,"ratio")).textContent = "-";
+
+      pushLog(sys, "セッションリセット（次セッション扱い・持ち越し適用）");
+
+      // セッションごとにログをリセット（要件2）
+      resetLog(sys);
+
+      refreshPanel(sys);
+    });
+
+    // 初回：carry取り込み
+    state[sys].lastCarryIn = cloneCounts(state[sys].carry);
+    addCounts(state[sys].base, state[sys].carry);
+    clearCounts(state[sys].carry);
+
+    refreshPanel(sys);
+  }
+
+  function refreshPanel(sys) {
+    const s = state[sys];
+
+    // カウント表示：確定分 + 保留分
+    for (const e of EVENT_DEFS) {
+      const el = document.getElementById(panelId(sys, "count-"+e.key));
+      if (el) el.textContent = s.base[e.key] + s.pending[e.key];
+    }
+
+    // KPI
+    document.getElementById(panelId(sys,"sumY")).textContent = yOf(s.base);
+    document.getElementById(panelId(sys,"pendingY")).textContent = yOf(s.pending);
+
+    // 前兆ステータス
+    const st = document.getElementById(panelId(sys,"omenStatus"));
+    if (s.omen) {
+      st.style.display = "block";
+      st.textContent = "前兆中です。以降のカウントは保留扱い（失敗で当該セッションに合算／成功で次セッションへ持ち越し）になります。";
+    } else {
+      st.style.display = "none";
+      st.textContent = "";
+    }
+
+    // 系統別 ΣY/ΣX
+    let sumY = 0, sumX = 0;
+    for (const h of s.history) { sumY += h.Y; sumX += h.X; }
+    document.getElementById(panelId(sys,"sysTotal")).textContent = sumX === 0 ? "-" : (sumY / sumX).toFixed(4);
+
+    // 操作ログ（時系列）
+    const logEl = document.getElementById(panelId(sys,"log"));
+    if (s.log.length === 0) {
+      logEl.innerHTML = `<li class="muted">まだ操作がありません。</li>`;
+    } else {
+      logEl.innerHTML = s.log.map(x => `<li><span>#${x.n}</span>${x.text}</li>`).join("");
+    }
+
+    // 履歴（削除ボタン付き）
+    const tb = document.getElementById(panelId(sys,"history"));
+    if (s.history.length === 0) {
+      tb.innerHTML = `<tr><td colspan="7" class="muted">まだ履歴がありません。</td></tr>`;
+    } else {
+      tb.innerHTML = s.history.map((h, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td class="right">${h.Y}</td>
+          <td class="right">${h.X}</td>
+          <td class="right">${formatRatio(h.r)}</td>
+          <td class="right">${h.carryInY ?? 0}</td>
+          <td class="right">${h.carryOutY ?? 0}</td>
+          <td class="right">
+            <button class="btn small danger" data-sys="${sys}" data-del="${i}">削除</button>
+          </td>
+        </tr>
+      `).join("");
+
+      // 削除ボタンのイベント（tbodyに委譲）
+      tb.querySelectorAll("button[data-del]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.dataset.del);
+          const ok = confirm(`${SYS_NAME[sys]}の履歴 #${idx+1} を削除します。よろしいですか？`);
+          if (!ok) return;
+          state[sys].history.splice(idx, 1);
+          refreshPanel(sys);
+        });
+      });
+    }
+
+    // 全体 ΣY/ΣX
+    totalRatioEl.textContent = calcGlobalTotalRatio();
+  }
+
+  // init
+  buildPanel("A");
+  buildPanel("B");
+  buildPanel("C");
+  totalRatioEl.textContent = calcGlobalTotalRatio();
+</script>
+</body>
+</html>
