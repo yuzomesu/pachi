@@ -123,13 +123,10 @@ function addSessionCard(s){
   });
 
   // 削除ボタン処理
-  card.querySelector('.delBtn').onclick = async e => {
-    e.stopPropagation();
-    if (!confirm('このセッションを削除しますか？')) return;
-    const { error } = await supabase.from('play_sessions')
-      .delete().eq('id', s.id);
-    if (error) alert('削除に失敗しました'); else loadCards();
-  };
+  // 削除ボタンは一旦プレースホルダー
+ card.querySelector('.delBtn').onclick = e => {
+   e.stopPropagation();
+ };
 
   grid.appendChild(card);
 }
