@@ -149,6 +149,17 @@
 </div>
 
 <button type="button" onclick="calc()">⑥ すべてまとめて計算する</button>
+<button id="btnSave" type="button" style="display:none;background:#6366f1;">💾 保存して共有URLを生成</button>
+
+<!-- 共有URLモーダル -->
+<dialog id="shareModal" style="background:#1e1e1e;color:#f5f5f5;border:1px solid #444;border-radius:12px;padding:20px;max-width:90%;width:360px;">
+  <h3 style="margin:0 0 12px;">共有URLが生成されました</h3>
+  <input id="shareUrl" type="text" readonly style="width:100%;padding:8px;background:#111;color:#f5f5f5;border:1px solid #444;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+  <div style="display:flex;gap:8px;margin-top:12px;">
+    <button id="btnCopy" type="button" style="flex:1;background:#0d9488;">📋 コピー</button>
+    <button type="button" onclick="document.getElementById('shareModal').close()" style="flex:1;background:#444;">閉じる</button>
+  </div>
+</dialog>
 
 <!-- ⑦ 結果表示（全フェーズ合算後の各人トータル） -->
 <div class="card">
@@ -617,6 +628,23 @@
     }
 
     phaseDetailBox.innerHTML = pdHtml;
+
+    // 計算結果をモジュール側に渡す
+    window._lastResult = {
+      finalNet,
+      totalAll,
+      perPhase: Array.from({ length: nPhases }, (_, pi) => ({
+        total  : perPhaseTotal[pi],
+        perHead: perPhasePerHead[pi],
+        members: Array.from({ length: nMembers }, (__, mi) => ({
+          active: perPhaseActive[pi][mi],
+          raw   : perPhaseRaw[pi][mi],
+          share : perPhaseShare[pi][mi],
+          adj   : perPhaseAdj[pi][mi],
+        })),
+      })),
+    };
+    document.getElementById('btnSave').style.display = '';
   }
 
   // 初期表示
@@ -638,6 +666,106 @@
       buildFinalInputs();
     });
   });
+</script>
+
+<script type="module">
+import { supabase } from './assets/js/supabase-init.js';
+
+/* ---- 入力値をJSONに収集 ---- */
+function collectInputData() {
+  const nMembers = Math.max(1, parseInt(document.getElementById('numMembers').value) || 1);
+  const nPhases  = Math.max(1, parseInt(document.getElementById('numPhases').value)  || 1);
+
+  const members = [];
+  for (let i = 1; i <= nMembers; i++) {
+    const el = document.getElementById(`memberName_${i}`);
+    members.push(el?.value.trim() || `人${i}`);
+  }
+
+  const phases = [];
+  for (let p = 1; p <= nPhases; p++) {
+    const gameType  = document.getElementById(`phase${p}_gameType`)?.value || 'pachi';
+    const pachiRate = parseFloat(document.getElementById(`phase${p}_pachiRate`)?.value) || 280;
+    const slotRate  = parseFloat(document.getElementById(`phase${p}_slotRate`)?.value)  || 53;
+    const phaseMembers = [];
+    for (let i = 1; i <= nMembers; i++) {
+      phaseMembers.push({
+        active      : document.getElementById(`phase${p}_member${i}_active`)?.checked ?? true,
+        cashInvest  : parseFloat(document.getElementById(`p${p}_${i}_cashInvest`)?.value)   || 0,
+        replayBalls : parseFloat(document.getElementById(`p${p}_${i}_replayBalls`)?.value)  || 0,
+        payoutBalls : parseFloat(document.getElementById(`p${p}_${i}_payoutBalls`)?.value)  || 0,
+        replayMedals: parseFloat(document.getElementById(`p${p}_${i}_replayMedals`)?.value) || 0,
+        savedMedals : parseFloat(document.getElementById(`p${p}_${i}_savedMedals`)?.value)  || 0,
+      });
+    }
+    phases.push({ gameType, pachiRate, slotRate, members: phaseMembers });
+  }
+
+  const finalInputs = [];
+  for (let i = 1; i <= nMembers; i++) {
+    finalInputs.push({
+      cash : parseFloat(document.getElementById(`final_cash_${i}`)?.value)  || 0,
+      balls: parseFloat(document.getElementById(`final_balls_${i}`)?.value) || 0,
+    });
+  }
+
+  return { members, phases, finalInputs };
+}
+
+/* ---- 保存ボタン ---- */
+document.getElementById('btnSave').addEventListener('click', async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    alert('保存にはログインが必要です。別タブでログインしてから再度お試しください。');
+    window.open('./login.html', '_blank');
+    return;
+  }
+
+  const title = prompt('タイトル（例: ○○ホール 7/30）', new Date().toLocaleDateString('ja-JP'));
+  if (title === null) return; // キャンセル
+
+  const { members, phases, finalInputs } = collectInputData();
+  const result = window._lastResult;
+  if (!result) { alert('先に⑥を押して計算してください。'); return; }
+
+  const btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+
+  const { data, error } = await supabase
+    .from('nori_records')
+    .insert({
+      user_id     : user.id,
+      title       : title.trim() || '無題',
+      played_at   : new Date().toISOString().slice(0, 10),
+      is_public   : true,
+      members,
+      phases,
+      final_inputs: finalInputs,
+      result,
+    })
+    .select('id')
+    .single();
+
+  btn.disabled = false;
+  btn.textContent = '💾 保存して共有URLを生成';
+
+  if (error) { alert('保存に失敗しました: ' + error.message); return; }
+
+  const shareUrl = `${location.origin}/pachi/nori/view.html?id=${data.id}`;
+  document.getElementById('shareUrl').value = shareUrl;
+  document.getElementById('shareModal').showModal();
+});
+
+/* ---- コピーボタン ---- */
+document.getElementById('btnCopy').addEventListener('click', () => {
+  const url = document.getElementById('shareUrl').value;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btnCopy');
+    btn.textContent = '✅ コピーしました';
+    setTimeout(() => { btn.textContent = '📋 コピー'; }, 2000);
+  });
+});
 </script>
 
 </body>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ノリ打ち結果</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111;
+      color: #f5f5f5;
+      padding: 16px;
+      line-height: 1.6;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.3rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 16px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+    h3 { font-size: 0.95rem; margin: 12px 0 4px; color: #9ca3af; }
+    .card {
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #333;
+    }
+    .meta { font-size: 0.85rem; color: #9ca3af; margin-bottom: 12px; }
+    .row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .row .name { color: #d1d5db; }
+    .pos  { color: #34d399; font-weight: 600; }
+    .neg  { color: #f87171; font-weight: 600; }
+    .zero { color: #9ca3af; }
+    .total-row {
+      display: flex; justify-content: space-between;
+      border-top: 1px solid #333; margin-top: 8px; padding-top: 8px;
+      font-weight: 700;
+    }
+    .phase-member { font-size: 0.88rem; color: #d1d5db; padding: 2px 0; }
+    .inactive { color: #4b5563; font-style: italic; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #374151;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: #818cf8;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    #errorBox {
+      background: #3b1313;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      padding: 16px;
+      display: none;
+    }
+    #loading { color: #9ca3af; }
+  </style>
+</head>
+<body>
+
+<a class="back-link" href="../nori.html">← 自分でノリ打ちを計算する</a>
+
+<div id="loading">読み込み中...</div>
+<div id="errorBox"></div>
+<div id="content" style="display:none;"></div>
+
+<script type="module">
+import { supabase } from '../assets/js/supabase-init.js';
+
+const id = new URLSearchParams(location.search).get('id');
+const loadingEl = document.getElementById('loading');
+const errorBox  = document.getElementById('errorBox');
+const content   = document.getElementById('content');
+
+function showError(msg) {
+  loadingEl.style.display = 'none';
+  errorBox.style.display  = 'block';
+  errorBox.textContent    = msg;
+}
+
+function fmt(n) {
+  const v = Number(n);
+  const s = Math.abs(v).toLocaleString() + ' 円';
+  return v > 0 ? '+' + s : v < 0 ? '-' + s : s;
+}
+
+function colorClass(n) {
+  return Number(n) > 0 ? 'pos' : Number(n) < 0 ? 'neg' : 'zero';
+}
+
+if (!id) { showError('URLにIDが含まれていません。'); }
+else {
+  const { data: rec, error } = await supabase
+    .from('nori_records')
+    .select('*')
+    .eq('id', id)
+    .eq('is_public', true)
+    .single();
+
+  if (error || !rec) {
+    showError('このURLは無効か、非公開に設定されています。');
+  } else {
+    loadingEl.style.display = 'none';
+    content.style.display   = 'block';
+
+    const { members, phases, final_inputs, result, title, played_at } = rec;
+    const { finalNet, totalAll, perPhase } = result;
+
+    let html = '';
+
+    // ヘッダー
+    html += `<h1>${title || 'ノリ打ち結果'}</h1>`;
+    html += `<div class="meta">`;
+    html += `📅 ${played_at ?? ''}　👥 ${members.join('、')}`;
+    html += `</div>`;
+
+    // 最終トータル
+    html += `<div class="card">`;
+    html += `<h2>最終トータル収支</h2>`;
+    for (let i = 0; i < members.length; i++) {
+      const net = Number(finalNet[i]);
+      const fc  = final_inputs[i]?.cash || 0;
+      const note = fc !== 0 ? '<span class="badge">最終回収含む</span>' : '';
+      html += `<div class="row">
+        <span class="name">${members[i]}${note}</span>
+        <span class="${colorClass(net)}">${fmt(net)}</span>
+      </div>`;
+    }
+    html += `<div class="total-row">
+      <span>全体合計</span>
+      <span class="${colorClass(totalAll)}">${fmt(totalAll)}</span>
+    </div>`;
+    html += `</div>`;
+
+    // フェーズ別
+    html += `<div class="card">`;
+    html += `<h2>フェーズ別詳細</h2>`;
+    perPhase.forEach((ph, pi) => {
+      const gameLabel = phases[pi]?.gameType === 'slot' ? 'スロット' : 'パチンコ';
+      html += `<h3>フェーズ${pi + 1}（${gameLabel}）`;
+      if (ph.total !== undefined) {
+        html += `　合計 <span class="${colorClass(ph.total)}">${fmt(ph.total)}</span>`;
+        html += ` ／ 1人あたり <span class="${colorClass(ph.perHead)}">${fmt(ph.perHead)}</span>`;
+      }
+      html += `</h3>`;
+      ph.members.forEach((m, mi) => {
+        if (!m.active) {
+          html += `<div class="phase-member inactive">${members[mi]}：不参加</div>`;
+        } else {
+          html += `<div class="phase-member">
+            ${members[mi]}：
+            生の収支 <span class="${colorClass(m.raw)}">${fmt(m.raw)}</span> →
+            均等後 <span class="${colorClass(m.share)}">${fmt(m.share)}</span>
+            （差額 <span class="${colorClass(m.adj)}">${fmt(m.adj)}</span>）
+          </div>`;
+        }
+      });
+    });
+    html += `</div>`;
+
+    content.innerHTML = html;
+    document.title = (title || 'ノリ打ち結果') + ' | ノリ打ち計算ツール';
+  }
+}
+</script>
+</body>
+</html>
