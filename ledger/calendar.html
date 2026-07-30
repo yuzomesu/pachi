@@ -43,10 +43,19 @@ body{
 
 /* ── カレンダー本体 ─────────────────────── */
 #calendar{display:grid;grid-template-columns:repeat(7,1fr)}
+.dow-header{
+  text-align:center;padding:4px 0;font-size:.8rem;font-weight:600;
+  background:#2d2d2d;color:#aaa;border:1px solid #444;
+}
+.dow-header.sun{color:#e05252}
+.dow-header.sat{color:#5588ff}
 .day{
   border:1px solid #e5e5e5;min-height:88px;
   position:relative;background:#fff;color:#000
 }
+.day.blank{background:#111;cursor:default;pointer-events:none}
+.day.sun .daynum{color:#e05252}
+.day.sat .daynum{color:#5588ff}
 .daynum{padding:2px 4px;font-size:.9rem;font-weight:500}
 .today{background:var(--today)}
 .profit{
@@ -166,13 +175,34 @@ function drawGrid(){
   calEl.innerHTML = '';
   ymEl.textContent = format(current,'yyyy年 M月');
 
-  eachDayOfInterval({
+  // 曜日ヘッダー行（日〜土）
+  ['日','月','火','水','木','金','土'].forEach((label, i) => {
+    const hdr = document.createElement('div');
+    hdr.className = 'dow-header' + (i===0?' sun':i===6?' sat':'');
+    hdr.textContent = label;
+    calEl.appendChild(hdr);
+  });
+
+  const days = eachDayOfInterval({
     start:startOfMonth(current),
     end  :endOfMonth  (current)
-  }).forEach(d=>{
+  });
+
+  // 月初の曜日オフセット（日=0…土=6）分だけ空白セルを追加
+  const offset = days[0].getDay();
+  for(let i=0; i<offset; i++){
+    const blank = document.createElement('div');
+    blank.className = 'day blank';
+    calEl.appendChild(blank);
+  }
+
+  days.forEach(d=>{
+    const dow  = d.getDay();
     const ymd  = format(d,'yyyy-MM-dd');
     const cell = document.createElement('div');
-    cell.className = 'day' + (isToday(d) ? ' today' : '');
+    cell.className = 'day'
+      + (isToday(d) ? ' today' : '')
+      + (dow===0 ? ' sun' : dow===6 ? ' sat' : '');
     cell.dataset.date = ymd;
     cell.innerHTML = `<div class="daynum">${d.getDate()}</div>`;
     cell.onclick   = () => openModal(ymd);
