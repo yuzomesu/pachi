@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>大海5スペシャル ボーダー計算</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a1a;
+      color: #f8f8f8;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 2rem 1rem;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      margin-bottom: 0.4rem;
+      color: #7dd3fc;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 480px;
+      margin: 0 auto 1.2rem;
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 0.5rem;
+    }
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    input[type=range] {
+      flex: 1;
+      accent-color: #38bdf8;
+      height: 6px;
+      cursor: pointer;
+    }
+    input[type=number] {
+      width: 80px;
+      padding: 0.5rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      text-align: center;
+      border: none;
+      border-radius: 8px;
+      background: #3a3a3a;
+      color: #f8f8f8;
+    }
+    input[type=number]:focus { outline: 2px solid #38bdf8; }
+
+    .result-main {
+      text-align: center;
+      margin-bottom: 1.2rem;
+    }
+    .border-value {
+      font-size: 3.2rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      transition: color 0.3s;
+    }
+    .border-unit {
+      font-size: 1rem;
+      color: #aaa;
+      margin-top: -0.2rem;
+    }
+    .eval-badge {
+      display: inline-block;
+      margin-top: 0.6rem;
+      padding: 0.3rem 1rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+    .stat-item {
+      background: #3a3a3a;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.2rem;
+    }
+    .stat-value {
+      font-size: 1.15rem;
+      font-weight: bold;
+    }
+
+    .tenjo-bar-wrap {
+      margin-top: 0.8rem;
+    }
+    .tenjo-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.3rem;
+    }
+    .tenjo-bar-bg {
+      background: #3a3a3a;
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+    }
+    .tenjo-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.2s, background 0.3s;
+    }
+
+    .spec-table {
+      width: 100%;
+      font-size: 0.82rem;
+      border-collapse: collapse;
+      color: #ccc;
+    }
+    .spec-table th {
+      color: #888;
+      font-weight: normal;
+      text-align: left;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #444;
+    }
+    .spec-table td {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #333;
+    }
+    .spec-table td:last-child { text-align: right; color: #f8f8f8; }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      color: #888;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .back-link:hover { color: #7dd3fc; }
+
+    /* color classes */
+    .color-bad    { color: #f87171; }
+    .color-normal { color: #fbbf24; }
+    .color-good   { color: #4ade80; }
+    .color-great  { color: #38bdf8; }
+    .bg-bad    { background: #f87171; }
+    .bg-normal { background: #fbbf24; }
+    .bg-good   { background: #4ade80; }
+    .bg-great  { background: #38bdf8; }
+    .badge-bad    { background: #7f1d1d; color: #f87171; }
+    .badge-normal { background: #78350f; color: #fbbf24; }
+    .badge-good   { background: #14532d; color: #4ade80; }
+    .badge-great  { background: #0c4a6e; color: #38bdf8; }
+  </style>
+</head>
+<body>
+
+  <h1>大海5スペシャル</h1>
+  <p class="subtitle">ハマり回転数 → 実効ボーダー計算</p>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <label>現在の通常回転数（0〜949）</label>
+    <div class="input-row">
+      <input type="range" id="spinSlider" min="0" max="949" value="0">
+      <input type="number"  id="spinNum"    min="0" max="949" value="0">
+    </div>
+  </div>
+
+  <!-- 結果カード -->
+  <div class="card">
+    <div class="result-main">
+      <div class="border-value" id="borderVal">18.30</div>
+      <div class="border-unit">回 / 千円</div>
+      <span class="eval-badge" id="evalBadge">通常</span>
+    </div>
+
+    <!-- 天井バー -->
+    <div class="tenjo-bar-wrap">
+      <div class="tenjo-bar-label">
+        <span>0回転</span>
+        <span id="remainLabel">残り 950回転 → 天井</span>
+        <span>950回転</span>
+      </div>
+      <div class="tenjo-bar-bg">
+        <div class="tenjo-bar-fill" id="tenjoBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- サブ統計 -->
+  <div class="card">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-label">平均ボーダー（全域）</div>
+        <div class="stat-value">18.55 回/千円</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">天井まで残り</div>
+        <div class="stat-value" id="remainSpins">950 回転</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">次当たりまでの期待出玉</div>
+        <div class="stat-value" id="expBalls">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">期待消費回転数</div>
+        <div class="stat-value" id="expSpins">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- スペック -->
+  <div class="card">
+    <table class="spec-table">
+      <tr><th colspan="2">大海5スペシャル スペック</th></tr>
+      <tr><td>大当り確率</td><td>1/319.7</td></tr>
+      <tr><td>ショート振分</td><td>46%</td></tr>
+      <tr><td>ラッシュ振分</td><td>54%</td></tr>
+      <tr><td>ショート回転数</td><td>104回</td></tr>
+      <tr><td>天井</td><td>通常950回転 → 時短350回</td></tr>
+    </table>
+  </div>
+
+  <a class="back-link" href="index.html">← メインページへ</a>
+
+<script>
+  const p = 1 / 319.7;
+  const q = 1 - p;
+
+  // 定数（初回だけ計算）
+  const P_short = 1 - Math.pow(q, 104);
+  const E_rush_base = 1400 / 0.46;
+  const E_short = P_short * E_rush_base / (1 - P_short);
+  const E_rush  = E_rush_base + E_short;
+  const E_hit_chain = 1400 + 0.46 * E_short + 0.54 * E_rush;
+  const P_tenjo_hit = 1 - Math.pow(q, 350);
+  const E_tenjo = P_tenjo_hit * E_hit_chain;
+
+  function calcBorder(n) {
+    const r = 950 - n;
+    if (r <= 0) return { border: 0, eBalls: E_tenjo, eSpins: 0 };
+
+    const P_r = 1 - Math.pow(q, r);
+    const eBalls = P_r * E_hit_chain + (1 - P_r) * E_tenjo;
+
+    let eSpins;
+    if (P_r < 1e-12) {
+      eSpins = r;
+    } else {
+      const etrunc = (1 - Math.pow(q, r) * (r * p + 1)) / (p * P_r);
+      eSpins = P_r * etrunc + (1 - P_r) * r;
+    }
+
+    const border = 250 * eSpins / eBalls;
+    return { border, eBalls, eSpins };
+  }
+
+  function getEval(border) {
+    if (border >= 18.0) return { label: '通常域',  cls: 'normal' };
+    if (border >= 16.0) return { label: 'お得',    cls: 'good'   };
+    if (border >= 12.0) return { label: '狙い目',  cls: 'great'  };
+    return                     { label: '天井間近', cls: 'great'  };
+  }
+
+  function update() {
+    const n = Math.max(0, Math.min(949, parseInt(spinNum.value) || 0));
+    spinSlider.value = n;
+    spinNum.value    = n;
+
+    const { border, eBalls, eSpins } = calcBorder(n);
+    const remain = 950 - n;
+    const ev = getEval(border);
+
+    borderVal.textContent = border.toFixed(2);
+    borderVal.className   = 'border-value color-' + ev.cls;
+
+    evalBadge.textContent = ev.label;
+    evalBadge.className   = 'eval-badge badge-' + ev.cls;
+
+    const pct = (n / 949 * 100).toFixed(1);
+    tenjoBar.style.width = pct + '%';
+    tenjoBar.className   = 'tenjo-bar-fill bg-' + ev.cls;
+
+    remainLabel.textContent = `残り ${remain}回転 → 天井`;
+    remainSpins.textContent = remain + ' 回転';
+    expBalls.textContent    = Math.round(eBalls).toLocaleString() + ' 玉';
+    expSpins.textContent    = Math.round(eSpins) + ' 回転';
+  }
+
+  const spinSlider = document.getElementById('spinSlider');
+  const spinNum    = document.getElementById('spinNum');
+
+  spinSlider.addEventListener('input', () => { spinNum.value = spinSlider.value; update(); });
+  spinNum.addEventListener('input', update);
+
+  update();
+</script>
+</body>
+</html>
