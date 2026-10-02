@@ -132,10 +132,12 @@
     // ── データ取得（v_monthly_sum + profiles_done に統一） ──
     const [
       { data: monthly },
+      { data: expectRows },
     ] = await Promise.all([
-      supabase.from('v_monthly_sum').select('user_id, ym, profit, expect')
+      supabase.from('v_monthly_sum').select('user_id, ym, profit')
         .gte('ym', '2025-04-01')
         .order('ym'),
+      supabase.rpc('get_monthly_expect_all'),
     ]);
 
     // ── 月別集計（全ユーザー合算） ─────────────────
@@ -144,7 +146,11 @@
       const key = String(r.ym).slice(0, 7);
       if (!monthMap[key]) monthMap[key] = { profit: 0, expect: 0 };
       monthMap[key].profit += Number(r.profit || 0);
-      monthMap[key].expect += Number(r.expect || 0);
+    }
+    for (const r of (expectRows ?? [])) {
+      const key = String(r.ym).slice(0, 7);
+      if (!monthMap[key]) monthMap[key] = { profit: 0, expect: 0 };
+      monthMap[key].expect += Number(r.total_expect || 0);
     }
     const monthKeys    = Object.keys(monthMap).sort();
     const monthProfits = monthKeys.map(k => monthMap[k].profit);
