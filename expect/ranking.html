@@ -136,37 +136,19 @@
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { location.href = '../login.html'; return; }
 
-    // ── データ取得（並列） ──────────────────────────
+    // ── データ取得（v_monthly_sum + profiles_done に統一） ──
     const [
-      { data: sessions },
       { data: monthly },
-      { data: cumRows }
+      { count: playerCount },
     ] = await Promise.all([
-      supabase.from('play_sessions').select('user_id, ex_ball, ex_cash'),
       supabase.from('v_monthly_sum').select('user_id, ym, profit, expect').order('ym'),
-      supabase.from('cumulative_totals')
-        .select('date, cumulative_balance, cumulative_ex')
-        .gte('date', '2025-05-01')
-        .order('date'),
+      supabase.from('profiles_done').select('id', { count: 'exact', head: true }),
     ]);
-
-    // ── サマリー計算 ──────────────────────────────
-    const totalSessions = sessions?.length ?? 0;
-    const totalEx       = sessions?.reduce((s, r) => s + Number(r.ex_ball||0) + Number(r.ex_cash||0), 0) ?? 0;
-    const totalProfit   = monthly?.reduce((s, r) => s + Number(r.profit||0), 0) ?? 0;
-    const uniquePlayers = new Set(sessions?.map(r => r.user_id)).size;
-
-    document.getElementById('sumSessions').textContent = totalSessions.toLocaleString();
-    document.getElementById('sumEx').textContent       = totalEx.toLocaleString() + ' 円';
-    const profitEl = document.getElementById('sumProfit');
-    profitEl.textContent  = totalProfit.toLocaleString() + ' 円';
-    profitEl.className    = 'stat-value ' + (totalProfit >= 0 ? 'pos' : 'neg');
-    document.getElementById('sumPlayers').textContent  = uniquePlayers + ' 人';
 
     // ── 月別集計（全ユーザー合算） ─────────────────
     const monthMap = {};
     for (const r of (monthly ?? [])) {
-      const key = String(r.ym).slice(0, 7); // YYYY-MM
+      const key = String(r.ym).slice(0, 7);
       if (!monthMap[key]) monthMap[key] = { profit: 0, expect: 0 };
       monthMap[key].profit += Number(r.profit || 0);
       monthMap[key].expect += Number(r.expect || 0);
@@ -175,6 +157,19 @@
     const monthProfits = monthKeys.map(k => monthMap[k].profit);
     const monthExpects = monthKeys.map(k => monthMap[k].expect);
 
+    // ── サマリー計算 ──────────────────────────────
+    const totalProfit   = monthProfits.reduce((s, v) => s + v, 0);
+    const totalEx       = monthExpects.reduce((s, v) => s + v, 0);
+    const uniquePlayers = playerCount ?? new Set((monthly ?? []).map(r => r.user_id)).size;
+
+    document.getElementById('sumSessions').textContent = monthKeys.length + ' ヶ月';
+    document.getElementById('sumEx').textContent       = totalEx.toLocaleString() + ' 円';
+    const profitEl = document.getElementById('sumProfit');
+    profitEl.textContent = totalProfit.toLocaleString() + ' 円';
+    profitEl.className   = 'stat-value ' + (totalProfit >= 0 ? 'pos' : 'neg');
+    document.getElementById('sumPlayers').textContent  = uniquePlayers + ' 人';
+
+    // ── 月別棒グラフ ──────────────────────────────
     new Chart(document.getElementById('monthlyChart'), {
       type: 'bar',
       data: {
@@ -183,7 +178,7 @@
           {
             label: '合計期待値',
             data: monthExpects,
-            backgroundColor: 'rgba(56, 189, 248, 0.6)',
+            backgroundColor: 'rgba(56,189,248,0.6)',
             borderColor: '#38bdf8',
             borderWidth: 1,
           },
@@ -191,7 +186,7 @@
             label: '合計収支',
             data: monthProfits,
             backgroundColor: monthProfits.map(v => v >= 0 ? 'rgba(74,222,128,0.6)' : 'rgba(248,113,113,0.6)'),
-            borderColor: monthProfits.map(v => v >= 0 ? '#4ade80' : '#f87171'),
+            borderColor:     monthProfits.map(v => v >= 0 ? '#4ade80' : '#f87171'),
             borderWidth: 1,
           }
         ]
@@ -200,48 +195,32 @@
         responsive: true,
         plugins: {
           legend: { labels: { color: '#ccc' } },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} 円`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} 円` } }
         },
         scales: {
           x: { ticks: { color: '#aaa' }, grid: { color: '#333' } },
-          y: {
-            ticks: {
-              color: '#aaa',
-              callback: v => v.toLocaleString()
-            },
-            grid: { color: '#333' }
-          }
+          y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() }, grid: { color: '#333' } }
         }
       }
     });
 
-    // ── 累積グラフ ─────────────────────────────────
-    // 日次期待値が0の日を除外
-    const rawCumEx    = (cumRows ?? []).map(r => Number(r.cumulative_ex));
-    const dailyEx     = rawCumEx.map((v, i) => i === 0 ? v : v - rawCumEx[i - 1]);
-    const keepIdx     = dailyEx.map((v, i) => Math.abs(v) > 1e-9 ? i : -1).filter(i => i !== -1);
-
-    const cumLabels   = keepIdx.map(i => cumRows[i].date);
-    const cumBalances = keepIdx.map(i => Number(cumRows[i].cumulative_balance));
-    const cumExes     = keepIdx.map(i => rawCumEx[i]);
-    const initBal     = cumBalances[0] ?? 0;
+    // ── 累積折れ線グラフ（月別データから構築） ────
+    let cumP = 0, cumE = 0;
+    const cumProfits = monthKeys.map(k => { cumP += monthMap[k].profit; return cumP; });
+    const cumExes    = monthKeys.map(k => { cumE += monthMap[k].expect; return cumE; });
 
     new Chart(document.getElementById('cumulativeChart'), {
       type: 'line',
       data: {
-        labels: cumLabels,
+        labels: monthKeys,
         datasets: [
           {
             label: '累積収支',
-            data: cumBalances.map(b => b - initBal),
+            data: cumProfits,
             borderColor: '#4ade80',
             backgroundColor: 'rgba(74,222,128,0.1)',
             borderWidth: 2,
-            pointRadius: 0,
+            pointRadius: 2,
             fill: true,
             tension: 0.3,
           },
@@ -251,7 +230,7 @@
             borderColor: '#38bdf8',
             backgroundColor: 'rgba(56,189,248,0.1)',
             borderWidth: 2,
-            pointRadius: 0,
+            pointRadius: 2,
             fill: true,
             tension: 0.3,
           }
@@ -261,18 +240,11 @@
         responsive: true,
         plugins: {
           legend: { labels: { color: '#ccc' } },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} 円`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} 円` } }
         },
         scales: {
-          x: { ticks: { color: '#aaa', maxTicksLimit: 8 }, grid: { color: '#333' } },
-          y: {
-            ticks: { color: '#aaa', callback: v => v.toLocaleString() },
-            grid: { color: '#333' }
-          }
+          x: { ticks: { color: '#aaa' }, grid: { color: '#333' } },
+          y: { ticks: { color: '#aaa', callback: v => v.toLocaleString() }, grid: { color: '#333' } }
         }
       }
     });
