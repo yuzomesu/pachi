@@ -29,13 +29,10 @@
     /* サマリーカード */
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 0.8rem;
       max-width: 640px;
       margin: 0 auto 1.5rem;
-    }
-    @media(min-width: 480px) {
-      .summary-grid { grid-template-columns: repeat(4, 1fr); }
     }
     .stat-card {
       background: #2d2d2d;
@@ -96,7 +93,7 @@
     <!-- サマリー数値 -->
     <div class="summary-grid">
       <div class="stat-card">
-        <div class="stat-label">総セッション数</div>
+        <div class="stat-label">集計期間</div>
         <div class="stat-value neu" id="sumSessions">—</div>
       </div>
       <div class="stat-card">
@@ -106,10 +103,6 @@
       <div class="stat-card">
         <div class="stat-label">累計収支</div>
         <div class="stat-value" id="sumProfit">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">参加人数</div>
-        <div class="stat-value neu" id="sumPlayers">—</div>
       </div>
     </div>
 
@@ -139,10 +132,10 @@
     // ── データ取得（v_monthly_sum + profiles_done に統一） ──
     const [
       { data: monthly },
-      { count: playerCount },
     ] = await Promise.all([
-      supabase.from('v_monthly_sum').select('user_id, ym, profit, expect').order('ym'),
-      supabase.from('profiles_done').select('id', { count: 'exact', head: true }),
+      supabase.from('v_monthly_sum').select('user_id, ym, profit, expect')
+        .gte('ym', '2025-04-01')
+        .order('ym'),
     ]);
 
     // ── 月別集計（全ユーザー合算） ─────────────────
@@ -158,16 +151,17 @@
     const monthExpects = monthKeys.map(k => monthMap[k].expect);
 
     // ── サマリー計算 ──────────────────────────────
-    const totalProfit   = monthProfits.reduce((s, v) => s + v, 0);
-    const totalEx       = monthExpects.reduce((s, v) => s + v, 0);
-    const uniquePlayers = playerCount ?? new Set((monthly ?? []).map(r => r.user_id)).size;
+    const totalProfit = monthProfits.reduce((s, v) => s + v, 0);
+    const totalEx     = monthExpects.reduce((s, v) => s + v, 0);
+    const periodLabel = monthKeys.length
+      ? `${monthKeys[0]} 〜 ${monthKeys[monthKeys.length - 1]}`
+      : '—';
 
-    document.getElementById('sumSessions').textContent = monthKeys.length + ' ヶ月';
+    document.getElementById('sumSessions').textContent = periodLabel;
     document.getElementById('sumEx').textContent       = totalEx.toLocaleString() + ' 円';
     const profitEl = document.getElementById('sumProfit');
     profitEl.textContent = totalProfit.toLocaleString() + ' 円';
     profitEl.className   = 'stat-value ' + (totalProfit >= 0 ? 'pos' : 'neg');
-    document.getElementById('sumPlayers').textContent  = uniquePlayers + ' 人';
 
     // ── 月別棒グラフ ──────────────────────────────
     new Chart(document.getElementById('monthlyChart'), {
