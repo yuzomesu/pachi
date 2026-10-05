@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>出来台ヒートマップ</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    table.heatmap { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: max-content; }
+    table.heatmap th, table.heatmap td { padding: 4px 6px; text-align: center; white-space: nowrap; }
+    table.heatmap thead th { position: sticky; top: 0; background: #fff; color: #666; font-weight: 500; z-index: 1; border-bottom: 1px solid #e5e5e5; }
+    table.heatmap .unit-head { position: sticky; left: 0; background: #fff; text-align: left; border-right: 1px solid #e5e5e5; font-weight: 600; z-index: 1; }
+    table.heatmap .unit-sub { font-weight: 400; color: #999; font-size: 10px; }
+    table.heatmap .cell { border: 1px solid #f5f5f5; min-width: 42px; }
+    table.heatmap .cell.empty { background: #fafafa; color: #ddd; }
+    .legend-cell { width: 14px; height: 10px; display: inline-block; }
+    table.ranking th, table.ranking td { padding: 5px 8px; border-bottom: 1px solid #eee; text-align: left; }
+    table.ranking td.num, table.ranking th.num { text-align: right; }
+  </style>
+
+  <!-- Supabase Client & キー（置換済みならそのまま） -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    window.supabase = createClient('__SUPABASE_URL__', '__SUPABASE_ANON__');
+  </script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 p-4">
+
+  <div class="max-w-6xl mx-auto">
+    <header class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800">出来台ヒートマップ</h1>
+        <p class="mt-1 text-gray-500 text-sm">ホール別・曜日ルール別の回転率推移。「エッジ」= その台の回転率 − 同日・同グループ全台平均。</p>
+      </div>
+      <a href="index.html" class="text-sm text-indigo-600 hover:underline whitespace-nowrap ml-4">← メインページ</a>
+    </header>
+
+    <p id="status" class="text-gray-500 text-sm mb-4">読み込み中...</p>
+    <div id="content" class="space-y-8"></div>
+  </div>
+
+<script type="module">
+const RAMP = [
+  "#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7",
+  "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b",
+];
+
+function rampIndex(rate, min, max) {
+  if (min == null || max == null || max === min) return 6;
+  const t = Math.min(1, Math.max(0, (rate - min) / (max - min)));
+  return Math.round(t * (RAMP.length - 1));
+}
+function cellTextColor(idx) {
+  return idx >= 7 ? "#ffffff" : "#0b0b0b";
+}
+function fmt(n, digits = 1) {
+  return n == null ? "–" : Number(n).toFixed(digits);
+}
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function groupRows(rows) {
+  const halls = new Map(); // hallKey -> { hallName, groups: Map(groupLabel -> {dayLabel, rows: []}) }
+  for (const r of rows) {
+    if (!halls.has(r.hall_key)) halls.set(r.hall_key, { hallName: r.hall_name, groups: new Map() });
+    const hall = halls.get(r.hall_key);
+    if (!hall.groups.has(r.group_label)) hall.groups.set(r.group_label, { dayLabel: r.day_label, rows: [] });
+    hall.groups.get(r.group_label).rows.push(r);
+  }
+  return halls;
+}
+
+function buildMatrix(rows) {
+  const dates = [...new Set(rows.map(r => r.target_date))].sort();
+  const units = [...new Set(rows.map(r => r.unit_id))].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  const cell = new Map();
+  for (const r of rows) cell.set(`${r.target_date}|${r.unit_id}`, r);
+  const machineByUnit = {};
+  for (const r of rows) if (!machineByUnit[r.unit_id]) machineByUnit[r.unit_id] = r.machine_title;
+
+  const unitStats = units.map(u => {
+    const samples = dates.map(d => cell.get(`${d}|${u}`)).filter(Boolean);
+    const n = samples.length;
+    const meanRate = n ? samples.reduce((a, s) => a + Number(s.rotation_rate), 0) / n : null;
+    const edges = samples.map(s => s.edge).filter(v => v != null).map(Number);
+    const meanEdge = edges.length ? edges.reduce((a, b) => a + b, 0) / edges.length : null;
+    const positiveRatio = edges.length ? edges.filter(v => v > 0).length / edges.length : null;
+    return { unit: u, machine: machineByUnit[u] || "", n, meanRate, meanEdge, positiveRatio };
+  });
+
+  const allRates = rows.map(r => Number(r.rotation_rate));
+  const rateMin = allRates.length ? Math.min(...allRates) : null;
+  const rateMax = allRates.length ? Math.max(...allRates) : null;
+
+  return { dates, units, cell, unitStats, rateMin, rateMax };
+}
+
+function rankDekidai(unitStats) {
+  return unitStats
+    .filter(s => s.n >= 2 && s.meanEdge != null && s.meanEdge > 0)
+    .sort((a, b) => b.meanEdge - a.meanEdge);
+}
+
+function renderLegend(min, max) {
+  const stops = RAMP.map(hex => `<span class="legend-cell" style="background:${hex}"></span>`).join("");
+  return `<div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+    <span>${fmt(min)}回転</span><span class="flex">${stops}</span><span>${fmt(max)}回転</span>
+  </div>`;
+}
+
+function renderRanking(ranked, totalUnits) {
+  if (!ranked.length) {
+    return `<p class="text-gray-400 text-sm">出来台候補なし（サンプル不足、またはプラスのエッジを持つ台なし）</p>`;
+  }
+  const rows = ranked.slice(0, 10).map((s, i) => `
+    <tr>
+      <td class="num">${i + 1}</td>
+      <td class="num">${esc(s.unit)}</td>
+      <td>${esc(s.machine)}</td>
+      <td class="num">${s.n}</td>
+      <td class="num">${fmt(s.meanRate)}</td>
+      <td class="num text-green-700 font-semibold">+${fmt(s.meanEdge)}</td>
+      <td class="num">${s.positiveRatio != null ? Math.round(s.positiveRatio * 100) + "%" : "–"}</td>
+      <td>${s.n < 4 ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full border border-gray-300 text-gray-400">n=${s.n}</span>` : ""}</td>
+    </tr>`).join("");
+  return `
+    <table class="ranking w-full text-sm">
+      <thead><tr class="text-gray-500">
+        <th>順位</th><th>台番号</th><th>機種</th><th>n</th><th>平均回転</th><th>平均エッジ</th><th>プラス率</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="text-gray-400 text-xs mt-1">対象 ${totalUnits}台中。n&lt;4 は参考値。</p>`;
+}
+
+function renderHeatmap(matrix) {
+  const { dates, units, cell, rateMin, rateMax, unitStats } = matrix;
+  if (!dates.length || !units.length) {
+    return `<p class="text-gray-400 text-sm">データなし</p>`;
+  }
+  const statByUnit = Object.fromEntries(unitStats.map(s => [s.unit, s]));
+  const header = dates.map(d => `<th>${esc(d.slice(5))}</th>`).join("");
+  const rows = units.map(u => {
+    const stat = statByUnit[u];
+    const cells = dates.map(d => {
+      const r = cell.get(`${d}|${u}`);
+      if (!r) return `<td class="cell empty">–</td>`;
+      const idx = rampIndex(Number(r.rotation_rate), rateMin, rateMax);
+      return `<td class="cell" style="background:${RAMP[idx]};color:${cellTextColor(idx)}" title="${esc(r.machine_title)} / ${d} / ${fmt(r.rotation_rate)}回転">${fmt(r.rotation_rate)}</td>`;
+    }).join("");
+    return `<tr>
+      <td class="unit-head">${esc(u)}<div class="unit-sub">n=${stat.n} 平均${fmt(stat.meanRate)}</div></td>
+      ${cells}
+    </tr>`;
+  }).join("");
+  return `
+    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+      <table class="heatmap">
+        <thead><tr><th class="sticky left-0 bg-white z-10">台番号</th>${header}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${renderLegend(rateMin, rateMax)}`;
+}
+
+async function main() {
+  const statusEl = document.getElementById("status");
+  const contentEl = document.getElementById("content");
+
+  const { data, error } = await supabase
+    .from("dekidai_rotations")
+    .select("*")
+    .order("target_date", { ascending: true });
+
+  if (error) {
+    statusEl.textContent = `読み込みエラー: ${error.message}`;
+    return;
+  }
+  if (!data || !data.length) {
+    statusEl.textContent = "データがまだありません。ローカルの収集バッチが走ると表示されます。";
+    return;
+  }
+
+  const halls = groupRows(data);
+  statusEl.textContent = `最終更新: ${data[data.length - 1].updated_at ?? ""} / ${data.length}行`;
+
+  const sections = [];
+  for (const [, hall] of halls) {
+    const groupSections = [];
+    for (const [groupLabel, group] of hall.groups) {
+      const matrix = buildMatrix(group.rows);
+      const ranked = rankDekidai(matrix.unitStats);
+      groupSections.push(`
+        <div class="mb-6">
+          <h3 class="text-base font-semibold text-gray-800">${esc(groupLabel)}
+            <span class="text-sm font-normal text-gray-500">（${esc(group.dayLabel ?? "")}）</span>
+          </h3>
+          <p class="text-gray-400 text-xs mb-2">対象台数 ${matrix.units.length} / 観測日数 ${matrix.dates.length} / サンプル数 ${group.rows.length}</p>
+          ${renderHeatmap(matrix)}
+          <h4 class="text-sm font-medium text-gray-600 mt-3 mb-1">出来台候補</h4>
+          ${renderRanking(ranked, matrix.units.length)}
+        </div>`);
+    }
+    sections.push(`
+      <section class="bg-white/80 backdrop-blur rounded-2xl border border-gray-200 shadow-sm p-5">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">${esc(hall.hallName)}</h2>
+        ${groupSections.join("")}
+      </section>`);
+  }
+  contentEl.innerHTML = sections.join("");
+}
+
+main();
+</script>
+</body>
+</html>
