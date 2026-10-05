@@ -26,10 +26,10 @@
     table.ranking td.num, table.ranking th.num { text-align: right; }
   </style>
 
-  <!-- Supabase Client & キー（置換済みならそのまま） -->
+  <!-- Supabase Client（anon key。RLSで読み取り専用に制限済みなので公開して問題ない） -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-    window.supabase = createClient('__SUPABASE_URL__', '__SUPABASE_ANON__');
+    window.supabase = createClient('https://nilaccjhjfzlqswaopwg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pbGFjY2poamZ6bHFzd2FvcHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3OTUzNjYsImV4cCI6MjA2NDM3MTM2Nn0.lOwIi5fhtYCwKHVcoYWtNdYGJnpD3-4CqqKsurYPh98');
   </script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 p-4">
