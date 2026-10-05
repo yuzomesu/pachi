@@ -157,7 +157,7 @@
       white-space: nowrap;
       color: var(--text-muted);
     }
-    #copyBtn {
+    #copyAllBtn {
       background: none;
       border: 1px solid var(--border);
       color: var(--text-muted);
@@ -167,8 +167,8 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    #copyBtn:hover { color: var(--text); border-color: #444; }
-    #copyBtn.copied { color: #4ade80; border-color: #4ade80; }
+    #copyAllBtn:hover { color: var(--text); border-color: #444; }
+    #copyAllBtn.copied { color: #4ade80; border-color: #4ade80; }
     #userInfo {
       font-size: 0.72rem;
       color: #555;
@@ -185,10 +185,20 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 4px;
     }
-    .msg {
+
+    /* メッセージラッパー（バブル + コピーボタン行） */
+    .msg-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
       max-width: 90%;
+    }
+    .msg-wrap.user { align-self: flex-end; align-items: flex-end; }
+    .msg-wrap.bot  { align-self: flex-start; align-items: flex-start; }
+
+    .msg {
       padding: 10px 14px;
       border-radius: 16px;
       font-size: 0.9rem;
@@ -196,24 +206,42 @@
       word-break: break-word;
       white-space: pre-wrap;
     }
-    .msg.user {
-      align-self: flex-end;
+    .msg-wrap.user .msg {
       background: var(--blue);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
-    .msg.bot {
-      align-self: flex-start;
+    .msg-wrap.bot .msg {
       background: var(--surface);
       border: 1px solid var(--border);
       border-bottom-left-radius: 4px;
     }
-    .msg.error {
-      align-self: flex-start;
+    .msg-wrap.error .msg {
       background: #3b1515;
       color: #fca5a5;
       border: 1px solid #7f1d1d;
     }
+
+    /* 発言ごとのコピーボタン */
+    .msg-copy {
+      background: none;
+      border: none;
+      color: #3a3a3a;
+      font-size: 0.72rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.1s, background 0.1s;
+    }
+    .msg-wrap:hover .msg-copy { color: #666; }
+    .msg-copy:hover { color: var(--text) !important; background: var(--surface2); }
+    .msg-copy.copied { color: #4ade80 !important; }
+    @media (max-width: 640px) {
+      .msg-copy { color: #3a3a3a; }
+      .msg-wrap:hover .msg-copy { color: #555; }
+    }
+
     .verdict.go   { color: #4ade80; font-weight: 800; }
     .verdict.stop { color: #f87171; font-weight: 800; }
     .verdict.cond { color: #fbbf24; font-weight: 800; }
@@ -354,7 +382,7 @@
   <header>
     <button id="menuBtn" onclick="openSidebar()">☰</button>
     <span id="chatTitle">新しいチャット</span>
-    <button id="copyBtn" onclick="copyDialogue()">コピー</button>
+    <button id="copyAllBtn" onclick="copyAllDialogue()">全コピー</button>
     <span id="userInfo"></span>
   </header>
 
@@ -423,17 +451,14 @@
     document.getElementById('chatTitle').textContent = chat.title;
 
     if (chat.msgs.length === 0) {
-      // ウェルカムメッセージ
-      const div = document.createElement('div');
-      div.className = 'msg bot';
-      div.innerHTML = '機種名・ゲーム数・状況を入力すると「打つべきか/やめるべきか」を判断します。<br><br>例: <em>北斗転生2、AT後850あべし、シャッター不明</em>';
-      area.appendChild(div);
+      const wrap = makeMsgWrap('bot');
+      wrap.querySelector('.msg').innerHTML = '機種名・ゲーム数・状況を入力すると「打つべきか/やめるべきか」を判断します。<br><br>例: <em>北斗転生2、AT後850あべし、シャッター不明</em>';
+      area.appendChild(wrap);
     } else {
       chat.msgs.forEach(m => {
-        const div = document.createElement('div');
-        div.className = `msg ${m.role}`;
-        div.innerHTML = m.html;
-        area.appendChild(div);
+        const wrap = makeMsgWrap(m.role);
+        wrap.querySelector('.msg').innerHTML = m.html;
+        area.appendChild(wrap);
       });
     }
     area.scrollTop = area.scrollHeight;
@@ -484,33 +509,70 @@
     document.getElementById('overlay').classList.remove('show');
   };
 
-  // ── コピー ──────────────────────────────────────────────
-  window.copyDialogue = async function() {
+  // ── HTMLをプレーンテキスト化 ──────────────────────────────
+  function htmlToPlain(html) {
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .trim();
+  }
+
+  // ── 発言ごとコピー ──────────────────────────────────────
+  async function copyMsgText(btn, msgDiv) {
+    const text = htmlToPlain(msgDiv.innerHTML);
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '⎘'; btn.classList.remove('copied'); }, 2000);
+    } catch {}
+  }
+
+  // ── メッセージWrapperを作る ─────────────────────────────
+  function makeMsgWrap(role) {
+    const wrap = document.createElement('div');
+    wrap.className = `msg-wrap ${role}`;
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg';
+    wrap.appendChild(msgDiv);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'msg-copy';
+    copyBtn.textContent = '⎘';
+    copyBtn.title = 'コピー';
+    copyBtn.addEventListener('click', () => copyMsgText(copyBtn, msgDiv));
+    wrap.appendChild(copyBtn);
+
+    return wrap;
+  }
+
+  // ── 全会話コピー ────────────────────────────────────────
+  window.copyAllDialogue = async function() {
     const chat = getChat(currentId);
     if (!chat || chat.msgs.length === 0) return;
     const text = chat.msgs.map(m => {
       const prefix = m.role === 'user' ? 'あなた' : 'AI';
-      const plain = m.html.replace(/<[^>]+>/g, '').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"');
-      return `【${prefix}】\n${plain}`;
+      return `【${prefix}】\n${htmlToPlain(m.html)}`;
     }).join('\n\n');
     try {
       await navigator.clipboard.writeText(text);
-      const btn = document.getElementById('copyBtn');
+      const btn = document.getElementById('copyAllBtn');
       btn.textContent = 'コピー完了';
       btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+      setTimeout(() => { btn.textContent = '全コピー'; btn.classList.remove('copied'); }, 2000);
     } catch {}
   };
 
   // ── メッセージ送信 ──────────────────────────────────────
   function appendMsg(role, html) {
     const area = document.getElementById('chatArea');
-    const div = document.createElement('div');
-    div.className = `msg ${role}`;
-    div.innerHTML = html;
-    area.appendChild(div);
+    const wrap = makeMsgWrap(role);
+    wrap.querySelector('.msg').innerHTML = html;
+    area.appendChild(wrap);
     area.scrollTop = area.scrollHeight;
-    return div;
+    return wrap.querySelector('.msg');
   }
 
   function formatResponse(text) {
@@ -558,7 +620,7 @@
 
       if (!resp.ok) {
         const err = await resp.text();
-        botDiv.className = 'msg error';
+        botDiv.closest('.msg-wrap').className = 'msg-wrap error';
         botDiv.innerHTML = `エラー: ${resp.status} ${escapeHtml(err)}`;
         chat.msgs.push({ role: 'bot', html: botDiv.innerHTML });
         saveChats();
@@ -600,7 +662,7 @@
               }
               textNode.innerHTML = formatResponse(fullText);
             } else if (ev.type === 'error') {
-              botDiv.className = 'msg error';
+              botDiv.closest('.msg-wrap').className = 'msg-wrap error';
               botDiv.innerHTML = escapeHtml(ev.message);
             }
           } catch {}
@@ -620,7 +682,7 @@
       saveChats();
 
     } catch (err) {
-      botDiv.className = 'msg error';
+      botDiv.closest('.msg-wrap').className = 'msg-wrap error';
       botDiv.innerHTML = `通信エラー: ${escapeHtml(err.message)}`;
       chat.msgs.push({ role: 'bot', html: botDiv.innerHTML });
       saveChats();
