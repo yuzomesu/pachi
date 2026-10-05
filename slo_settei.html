@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>スロット設定判別</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+    .bar-fill { transition: width 0.3s cubic-bezier(.4,0,.2,1); }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white">
+
+  <!-- Header -->
+  <header class="pt-10 pb-6 text-center px-4">
+    <h1 class="text-3xl font-black tracking-tight bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+      スロット設定判別
+    </h1>
+    <p class="mt-1 text-sm text-slate-400">観測データを入力 → 設定確率をリアルタイム推定（ベイズ推定）</p>
+  </header>
+
+  <!-- Machine tabs -->
+  <div class="flex flex-wrap gap-2 justify-center px-4 mb-8" id="machineTabs"></div>
+
+  <!-- Sticky result panel -->
+  <div class="sticky top-2 z-20 px-4 mb-6 max-w-2xl mx-auto">
+    <div class="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-medium text-slate-400 uppercase tracking-widest">設定確率推定</span>
+        <span class="text-xl font-black" id="topBadge">—</span>
+      </div>
+      <div id="bars" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Reset -->
+  <div class="max-w-2xl mx-auto px-4 mb-4 flex justify-end">
+    <button id="resetBtn"
+      class="text-xs text-slate-400 border border-slate-700 rounded-lg px-4 py-2 hover:bg-white/5 transition">
+      カウントリセット
+    </button>
+  </div>
+
+  <!-- Metric cards -->
+  <div id="metrics" class="max-w-2xl mx-auto px-4 pb-12 space-y-3"></div>
+
+  <div class="text-center pb-10">
+    <a href="settings.html" class="text-sm text-slate-500 hover:text-violet-400 transition">← 設定判別へ</a>
+  </div>
+
+<script>
+// ── Machine data ─────────────────────────────────
+const MACHINES = [
+{
+  name: "防振り",
+  metrics: [
+    { name:"上段5枚ベル出現率", type:"binomial", successLabel:"上段ベル回数", trialsLabel:"総ゲーム数",
+      probs:[1/18.3,1/18.3,1/18.3,1/17.9,1/17.3,1/16.6] },
+    { name:"ヒドラ目（非高確率）", type:"multinomial", categoryLabels:["非当選","運営高確率","EP"],
+      probs:[[0.75,0.24575,0.00425],[0.75,0.24575,0.00425],[0.746,0.248666,0.005334],[0.7,0.2901,0.0099],[0.683,0.303686,0.013314],[0.667,0.317682,0.015318]] },
+    { name:"ヒドラ目（高確率）", type:"multinomial", categoryLabels:["非当選","運営高確率","EP"],
+      probs:[[0.5,0.4915,0.0085],[0.5,0.4915,0.0085],[0.504,0.485584,0.018416],[0.55,0.43515,0.01485],[0.554,0.427268,0.018732],[0.6,0.3816,0.0184]] },
+    { name:"チェリー/スイカ → CZ当選率（高確率）", type:"binomial", successLabel:"CZ当選回数", trialsLabel:"チェリー/スイカ回数",
+      probs:[0.038,0.063,0.063,0.083,0.088,0.092] },
+    { name:"初当りボーナス後 即CZ（BET高確）", type:"binomial", successLabel:"即CZ当選回数", trialsLabel:"初当りボーナス回数",
+      probs:[0.025,0.050,0.054,0.079,0.096,0.104] },
+    { name:"150Gゾーン CZ当選率", type:"binomial", successLabel:"CZ当選回数", trialsLabel:"150Gゾーン到達回数",
+      probs:[0.400,0.400,0.404,0.404,0.404,0.408] },
+    { name:"300Gゾーン CZ当選率", type:"binomial", successLabel:"CZ当選回数", trialsLabel:"300Gゾーン到達回数",
+      probs:[0.400,0.421,0.421,0.475,0.488,0.500] },
+    { name:"450Gゾーン CZ当選率", type:"binomial", successLabel:"CZ当選回数", trialsLabel:"450Gゾーン到達回数",
+      probs:[0.183,0.204,0.208,0.258,0.292,0.304] },
+    { name:"650Gゾーン CZ当選率", type:"binomial", successLabel:"CZ当選回数", trialsLabel:"650Gゾーン到達回数",
+      probs:[0.100,0.104,0.108,0.179,0.192,0.233] },
+    { name:"無限CZ選択率（300GゾーンCZ当選時）", type:"binomial", successLabel:"無限CZ回数", trialsLabel:"300GゾーンCZ当選回数",
+      probs:[0.317,0.392,0.396,0.442,0.458,0.471] },
+    { name:"高確率(CZ)継続G振り分け（防御状態以外）", type:"multinomial", categoryLabels:["10G","20G","無限"],
+      probs:[[0.950,0.046,0.004],[0.950,0.046,0.004],[0.946,0.050,0.004],[0.938,0.058,0.004],[0.929,0.067,0.004],[0.921,0.075,0.004]] },
+    { name:"高確率(CZ)継続G振り分け（防御状態時）", type:"multinomial", categoryLabels:["10G","20G","無限"],
+      probs:[[0.929,0.046,0.025],[0.929,0.046,0.025],[0.925,0.050,0.025],[0.917,0.058,0.025],[0.908,0.067,0.025],[0.900,0.075,0.025]] },
+    { name:"サブ液晶タッチ時セリフ出現率", type:"multinomial",
+      categoryLabels:["メイプルちゃんしか勝たん","サリーちゃんしか勝たん","楓の木しか勝たん","長い冒険になりそうだ","オリハルコンかな？"],
+      probs:[[0.4997,0.4997,0.0006,0.0,0.0],[0.5690,0.4290,0.0020,0.0,0.0],[0.4280,0.5680,0.0040,0.0,0.0],[0.5690,0.4200,0.0100,0.0010,0.0],[0.4198,0.5690,0.0100,0.0012,0.0],[0.5704,0.4130,0.0150,0.0015,0.0001]] },
+    { name:"ボーナス中キャラ紹介（0〜5000G）", type:"multinomial",
+      categoryLabels:["青背景","銀翼","樹皇","ミィ","ペイン","機械神","大天使メイプル","ドラぞう","運営"],
+      probs:[[0.8085,0.1300,0.0500,0.0100,0.0010,0.0005,0.0000,0.0000,0.0000],[0.7990,0.1340,0.0520,0.0120,0.0025,0.0000,0.0005,0.0000,0.0000],[0.7920,0.1380,0.0540,0.0120,0.0025,0.0005,0.0000,0.0010,0.0000],[0.7655,0.1420,0.0560,0.0120,0.0100,0.0005,0.0050,0.0010,0.0000],[0.7565,0.1460,0.0580,0.0200,0.0125,0.0050,0.0005,0.0010,0.0005],[0.7385,0.1500,0.0600,0.0250,0.0150,0.0050,0.0050,0.0010,0.0005]] },
+    { name:"ボーナス中キャラ紹介（5001〜7000G）", type:"multinomial",
+      categoryLabels:["青背景","銀翼","樹皇","ミィ","ペイン","機械神","大天使メイプル","ドラぞう","運営"],
+      probs:[[0.8085,0.1300,0.0500,0.0100,0.0010,0.0005,0.0000,0.0000,0.0000],[0.7990,0.1340,0.0520,0.0120,0.0025,0.0000,0.0005,0.0000,0.0000],[0.7880,0.1380,0.0540,0.0120,0.0025,0.0005,0.0000,0.0050,0.0000],[0.7525,0.1420,0.0560,0.0200,0.0100,0.0020,0.0125,0.0050,0.0000],[0.7415,0.1460,0.0580,0.0200,0.0125,0.0125,0.0020,0.0050,0.0025],[0.7175,0.1500,0.0600,0.0250,0.0150,0.0125,0.0125,0.0050,0.0025]] },
+    { name:"ボーナス中キャラ紹介（7001〜8000G）", type:"multinomial",
+      categoryLabels:["青背景","銀翼","樹皇","ミィ","ペイン","機械神","大天使メイプル","ドラぞう","運営"],
+      probs:[[0.8085,0.1300,0.0500,0.0100,0.0010,0.0005,0.0000,0.0000,0.0000],[0.7990,0.1340,0.0520,0.0120,0.0025,0.0000,0.0005,0.0000,0.0000],[0.7680,0.1380,0.0540,0.0120,0.0025,0.0005,0.0000,0.0250,0.0000],[0.6825,0.1420,0.0560,0.0200,0.0100,0.0020,0.0625,0.0250,0.0000],[0.6640,0.1460,0.0580,0.0200,0.0125,0.0625,0.0020,0.0250,0.0100],[0.5899,0.1500,0.0600,0.0250,0.0150,0.0625,0.0625,0.0250,0.0100]] }
+  ]
+},
+{
+  name: "北斗の拳",
+  metrics: [
+    { name:"弱スイカ確率", type:"binomial", successLabel:"弱スイカ回数", trialsLabel:"総ゲーム数",
+      probs:[1/109.0,1/108.7,1/108.7,1/105.9,1/100.7,1/98.3] },
+    { name:"強スイカ合算確率", type:"binomial", successLabel:"強スイカ回数", trialsLabel:"総ゲーム数",
+      probs:[1/409.6,1/404.5,1/404.5,1/376.6,1/352.3,1/337.8] },
+    { name:"中段チェリー合算確率", type:"binomial", successLabel:"中段チェリー回数", trialsLabel:"総ゲーム数",
+      probs:[1/210.1,1/204.8,1/204.8,1/199.8,1/195.0,1/190.5] },
+    { name:"リーチ目役確率", type:"binomial", successLabel:"リーチ目役回数", trialsLabel:"総ゲーム数",
+      probs:[1/16384,1/13107.2,1/13107.2,1/10922.7,1/9362.3,1/8192] },
+    { name:"BB継続率分布（全BB平均）", type:"multinomial", categoryLabels:["66%","79%","84%","89%"],
+      probs:[[0.6134,0.2891,0.0533,0.0442],[0.6169,0.2884,0.0521,0.0426],[0.6169,0.2884,0.0521,0.0426],[0.6310,0.2877,0.0468,0.0345],[0.6373,0.2865,0.0446,0.0316],[0.6396,0.2862,0.0431,0.0311]] },
+    { name:"［設定変更時］内部状態移行率", type:"multinomial", categoryLabels:["地獄","通常","天国","本前兆"],
+      probs:[[0.4873,0.3307,0.1757,0.0063],[0.4759,0.3345,0.1832,0.0064],[0.4759,0.3345,0.1832,0.0064],[0.3915,0.3632,0.2347,0.0107],[0.3495,0.3778,0.2607,0.0120],[0.3001,0.4075,0.2792,0.0132]] },
+    { name:"［BB終了後］内部状態移行率", type:"multinomial", categoryLabels:["地獄","通常","天国","本前兆"],
+      probs:[[0.4217,0.3130,0.2582,0.0071],[0.4197,0.3150,0.2582,0.0071],[0.4197,0.3150,0.2582,0.0071],[0.3750,0.3154,0.3024,0.0072],[0.3424,0.3123,0.3380,0.0073],[0.3155,0.3176,0.3594,0.0074]] },
+    { name:"BB終了時ボイス（1G連非当選時）", type:"multinomial", categoryLabels:["シン","サウザー","ジャギ","アミバ","その他"],
+      probs:[[0.0565,0.0504,0.0336,0.0122,0.8473],[0.0610,0.0534,0.0381,0.0153,0.8322],[0.0610,0.0534,0.0381,0.0153,0.8322],[0.0626,0.0626,0.0626,0.0626,0.7496],[0.0671,0.0671,0.0671,0.0671,0.7316],[0.0717,0.0717,0.0717,0.0717,0.7132]] }
+  ]
+},
+{
+  name: "カバネリ",
+  metrics: [
+    { name:"ボーナス合算", type:"binomial", successLabel:"ボーナス回数", trialsLabel:"総ゲーム数",
+      probs:[1/237.0,1/230.7,1/214.0,1/186.5,1/171.3,1/151.3] },
+    { name:"ST合算", type:"binomial", successLabel:"ST回数", trialsLabel:"総ゲーム数",
+      probs:[1/407.9,1/393.2,1/372.4,1/327.2,1/307.3,1/290.6] },
+    { name:"共通6枚ベル", type:"binomial", successLabel:"共通6枚ベル回数", trialsLabel:"総ゲーム数",
+      probs:[1/26.6,1/26.6,1/25.9,1/25.4,1/24.9,1/24.2] },
+    { name:"無名CZ 2択ナビ発生率（非小役時）", type:"binomial", successLabel:"ナビ発生回数", trialsLabel:"対象成立回数",
+      probs:[0.481,0.481,0.503,0.539,0.562,0.628] },
+    { name:"無名CZ 3連撃 成功率", type:"binomial", successLabel:"成功回数", trialsLabel:"3連撃到達回数",
+      probs:[0.187,0.188,0.235,0.283,0.306,0.407] },
+    { name:"CZ減算pt（通常・複合チャンス目）", type:"multinomial", categoryLabels:["15pt","30pt","60pt","120pt"],
+      probs:[[0.933,0.063,0.004,0.0],[0.933,0.063,0.004,0.0],[0.929,0.067,0.004,0.0],[0.896,0.100,0.004,0.0],[0.800,0.196,0.004,0.0],[0.796,0.200,0.004,0.0]] },
+    { name:"CZ減算pt（高確・複合チャンス目）", type:"multinomial", categoryLabels:["15pt","30pt","60pt","120pt"],
+      probs:[[0.0,0.933,0.063,0.004],[0.0,0.933,0.063,0.004],[0.0,0.929,0.067,0.004],[0.0,0.896,0.100,0.004],[0.0,0.800,0.196,0.004],[0.0,0.796,0.200,0.004]] },
+    { name:"CZ失敗時 BBランクアップ（無名/生駒）", type:"multinomial", categoryLabels:["+1UP","+3UP","なし"],
+      probs:[[0.200,0.004,0.796],[0.300,0.004,0.696],[0.300,0.004,0.696],[0.450,0.004,0.546],[0.454,0.004,0.542],[0.496,0.004,0.500]] },
+    { name:"おみくじ（示唆）出現", type:"multinomial", categoryLabels:["小吉(銅)","中吉(銀)","大吉(金)","その他"],
+      probs:[[0.0,0.0,0.0,1.0],[1/6553,0.0,0.0,1.0],[1/6553,0.0,0.0,1.0],[1/8192,1/32768,0.0,1.0],[1/9362,1/21845,0.0,1.0],[1/9362,1/32768,1/65536,1.0]] }
+  ]
+}
+];
+
+// ── Bayesian inference ────────────────────────────
+function infer(machine, obsArr) {
+  const eps = 1e-12;
+  const logP = Array(6).fill(Math.log(1/6));
+  for (let mi = 0; mi < machine.metrics.length; mi++) {
+    const m = machine.metrics[mi];
+    const obs = obsArr[mi] || [];
+    if (obs.reduce((a,b)=>a+b,0) === 0) continue;
+    for (let s = 0; s < 6; s++) {
+      const raw = m.type==='binomial' ? [m.probs[s], 1-m.probs[s]] : m.probs[s];
+      const sumR = raw.reduce((a,b)=>a+b,0) || 1;
+      const p = raw.map(x => Math.min(1-eps, Math.max(eps, x/sumR)));
+      const k = Math.min(obs.length, p.length);
+      for (let i=0; i<k; i++) logP[s] += obs[i] * Math.log(p[i]);
+    }
+  }
+  const mx = Math.max(...logP);
+  const w = logP.map(v => Math.exp(v-mx));
+  const z = w.reduce((a,b)=>a+b,0) || 1;
+  return w.map(x => x/z*100);
+}
+
+// ── State ─────────────────────────────────────────
+let machIdx = 0;
+let inputs = [];
+
+function getObs(machine) {
+  return machine.metrics.map((m, mi) => {
+    const r = inputs[mi] || [];
+    if (m.type === 'binomial') {
+      const suc = r[0]||0, tot = r[1]||0;
+      return [suc, Math.max(0, tot-suc)];
+    }
+    return r.map(v => v||0);
+  });
+}
+
+// ── Setting theme ─────────────────────────────────
+const S_META = [
+  { label:'設定1', color:'#94a3b8', bg:'bg-slate-400'   },
+  { label:'設定2', color:'#60a5fa', bg:'bg-blue-400'    },
+  { label:'設定3', color:'#34d399', bg:'bg-emerald-400' },
+  { label:'設定4', color:'#fb923c', bg:'bg-orange-400'  },
+  { label:'設定5', color:'#f472b6', bg:'bg-pink-400'    },
+  { label:'設定6', color:'#fbbf24', bg:'bg-amber-400'   },
+];
+
+// ── Render ────────────────────────────────────────
+function renderTabs() {
+  const el = document.getElementById('machineTabs');
+  el.innerHTML = MACHINES.map((m, i) => `
+    <button data-i="${i}" class="machine-tab px-5 py-2 rounded-full text-sm font-semibold border transition-all
+      ${i===machIdx
+        ? 'bg-violet-500 border-violet-400 text-white shadow-lg shadow-violet-500/30'
+        : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+      }">${m.name}</button>
+  `).join('');
+  el.querySelectorAll('button').forEach(b => {
+    b.onclick = () => { machIdx=+b.dataset.i; inputs=[]; renderTabs(); renderMetrics(); updateResults(); };
+  });
+}
+
+function updateResults() {
+  const probs = infer(MACHINES[machIdx], getObs(MACHINES[machIdx]));
+  const top = probs.indexOf(Math.max(...probs));
+  const badge = document.getElementById('topBadge');
+  badge.textContent = S_META[top].label;
+  badge.style.color = S_META[top].color;
+  document.getElementById('bars').innerHTML = probs.map((p, i) => `
+    <div class="flex items-center gap-3">
+      <span class="w-10 text-right text-xs font-semibold shrink-0" style="color:${S_META[i].color}">${S_META[i].label.replace('設定','S')}</span>
+      <div class="flex-1 h-3 bg-white/5 rounded-full overflow-hidden">
+        <div class="bar-fill h-full rounded-full" style="width:${p.toFixed(2)}%;background:${S_META[i].color}"></div>
+      </div>
+      <span class="w-12 text-right text-xs font-mono shrink-0 ${i===top?'font-bold':'text-slate-400'}"
+        style="${i===top?'color:'+S_META[i].color:''}">${p.toFixed(1)}%</span>
+    </div>
+  `).join('');
+}
+
+function refTable(m) {
+  if (m.type === 'binomial') {
+    const rows = S_META.map((sm, i) => {
+      const q = m.probs[i];
+      return `<tr><td class="py-0.5 pr-3 text-slate-400">${sm.label}</td><td class="py-0.5 pr-3 tabular-nums">${(q*100).toFixed(3)}%</td><td class="py-0.5 tabular-nums text-slate-400">1/${(1/q).toFixed(1)}</td></tr>`;
+    }).join('');
+    return `<details class="mt-3"><summary class="text-xs text-slate-600 hover:text-slate-400 cursor-pointer select-none">参考確率 ▾</summary>
+      <table class="mt-2 text-xs w-full"><thead><tr class="text-slate-500"><th class="text-left pb-1">設定</th><th class="text-left pb-1">確率</th><th class="text-left pb-1">分母</th></tr></thead><tbody>${rows}</tbody></table>
+    </details>`;
+  }
+  const hdr = m.categoryLabels.map(c=>`<th class="pb-1 pr-2">${c}</th>`).join('');
+  const rows = S_META.map((sm, i) => {
+    const ps=m.probs[i], s=ps.reduce((a,b)=>a+b,0)||1;
+    return `<tr><td class="pr-2 py-0.5 text-slate-400">${sm.label}</td>${ps.map(p=>`<td class="pr-2 py-0.5 tabular-nums">${(p/s*100).toFixed(1)}%</td>`).join('')}</tr>`;
+  }).join('');
+  return `<details class="mt-3"><summary class="text-xs text-slate-600 hover:text-slate-400 cursor-pointer select-none">参考確率 ▾</summary>
+    <div class="overflow-x-auto mt-2"><table class="text-xs whitespace-nowrap"><thead><tr class="text-slate-500"><th class="pr-2 pb-1 text-left">設定</th>${hdr}</tr></thead><tbody>${rows}</tbody></table></div>
+  </details>`;
+}
+
+function renderMetrics() {
+  const machine = MACHINES[machIdx];
+  const el = document.getElementById('metrics');
+  el.innerHTML = '';
+  machine.metrics.forEach((m, mi) => {
+    const card = document.createElement('div');
+    card.className = 'rounded-2xl bg-white/5 border border-white/10 p-4';
+    let inp;
+    if (m.type === 'binomial') {
+      const sv=inputs[mi]?.[0]??'', tv=inputs[mi]?.[1]??'';
+      inp = `<div class="grid grid-cols-2 gap-3 mt-3">
+        <label class="block"><span class="block text-xs text-slate-500 mb-1">${m.trialsLabel}</span>
+          <input type="number" inputmode="numeric" min="0" value="${tv}" placeholder="0" data-mi="${mi}" data-ci="1"
+            class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500 focus:bg-white/10 transition"></label>
+        <label class="block"><span class="block text-xs text-slate-500 mb-1">${m.successLabel}</span>
+          <input type="number" inputmode="numeric" min="0" value="${sv}" placeholder="0" data-mi="${mi}" data-ci="0"
+            class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500 focus:bg-white/10 transition"></label>
+      </div>`;
+    } else {
+      const cats = m.categoryLabels.map((c,ci)=>`
+        <label class="block"><span class="block text-xs text-slate-500 mb-1">${c}</span>
+          <input type="number" inputmode="numeric" min="0" value="${inputs[mi]?.[ci]??''}" placeholder="0" data-mi="${mi}" data-ci="${ci}"
+            class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500 focus:bg-white/10 transition"></label>`).join('');
+      inp = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">${cats}</div>`;
+    }
+    card.innerHTML = `<p class="text-sm font-semibold text-slate-200">${m.name}</p>${inp}${refTable(m)}`;
+    el.appendChild(card);
+  });
+  el.querySelectorAll('input[data-mi]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const mi=+inp.dataset.mi, ci=+inp.dataset.ci;
+      if (!inputs[mi]) inputs[mi]=[];
+      inputs[mi][ci]=Math.max(0,parseInt(inp.value)||0);
+      updateResults();
+    });
+  });
+}
+
+document.getElementById('resetBtn').onclick = () => { inputs=[]; renderMetrics(); updateResults(); };
+
+renderTabs();
+renderMetrics();
+updateResults();
+</script>
+</body>
+</html>
