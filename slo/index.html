@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>スロAIエージェント</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── ヘッダー ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    header a {
+      color: #888;
+      text-decoration: none;
+      font-size: 1.4rem;
+      line-height: 1;
+      padding: 4px;
+    }
+    header h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f0f0f0;
+      flex: 1;
+    }
+    #userInfo {
+      font-size: 0.75rem;
+      color: #666;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── チャット領域 ── */
+    #chatArea {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── メッセージ ── */
+    .msg {
+      max-width: 90%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.bot {
+      align-self: flex-start;
+      background: #1e1e1e;
+      color: #f0f0f0;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #2a2a2a;
+    }
+    .msg.bot .verdict {
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .verdict.go   { color: #4ade80; }
+    .verdict.stop { color: #f87171; }
+    .verdict.cond { color: #fbbf24; }
+    .msg.tool-indicator {
+      font-size: 0.75rem;
+      color: #555;
+      background: none;
+      border: none;
+      padding: 2px 14px;
+      align-self: flex-start;
+    }
+    .msg.error {
+      align-self: flex-start;
+      background: #3b1515;
+      color: #fca5a5;
+      border: 1px solid #7f1d1d;
+    }
+
+    /* ── ツール表示 ── */
+    .tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #1a2a1a;
+      color: #4ade80;
+      border: 1px solid #2d4a2d;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      margin: 2px 0;
+    }
+
+    /* ── クイック例 ── */
+    #examples {
+      padding: 0 16px 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .ex-chip {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #aaa;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .ex-chip:hover { border-color: #555; color: #f0f0f0; }
+
+    /* ── 入力欄 ── */
+    #inputArea {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 10px 12px 12px;
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    #msgInput {
+      flex: 1;
+      background: #111;
+      color: #f0f0f0;
+      border: 1px solid #333;
+      border-radius: 20px;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      resize: none;
+      max-height: 120px;
+      min-height: 42px;
+      line-height: 1.4;
+      outline: none;
+      font-family: inherit;
+    }
+    #msgInput:focus { border-color: #2563eb; }
+    #sendBtn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    #sendBtn:disabled { background: #333; cursor: not-allowed; }
+    #sendBtn:hover:not(:disabled) { background: #1d4ed8; }
+
+    /* ── ローディング ── */
+    .typing-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: #555;
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: blink 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; }
+      40% { opacity: 1; }
+    }
+
+    /* ── 認証ローディング ── */
+    #authLoading {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    /* スクロールバー */
+    #chatArea::-webkit-scrollbar { width: 4px; }
+    #chatArea::-webkit-scrollbar-track { background: transparent; }
+    #chatArea::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="../index.html" title="戻る">←</a>
+  <h1>スロAIエージェント</h1>
+  <span id="userInfo">...</span>
+</header>
+
+<div id="authLoading">認証確認中...</div>
+
+<div id="mainContent" style="display:none; flex:1; flex-direction:column; min-height:0; overflow:hidden;">
+  <div id="chatArea">
+    <div class="msg bot">
+      機種名・ゲーム数・状況を入力すると「打つべきか/やめるべきか」を判断します。<br><br>
+      例: <em>北斗転生2、AT後850あべし、シャッター不明</em>
+    </div>
+  </div>
+
+  <div id="examples">
+    <span class="ex-chip" onclick="setExample(this)">北斗転生2 AT後850G あべしシャッター不明</span>
+    <span class="ex-chip" onclick="setExample(this)">東京喰種 穢れ狙い 9pt AT駆け抜け後150G</span>
+    <span class="ex-chip" onclick="setExample(this)">カバネリ海門決戦 狙い目ボーダー</span>
+    <span class="ex-chip" onclick="setExample(this)">Re:ゼロ2 天井狙い やめどき</span>
+  </div>
+
+  <div id="inputArea">
+    <textarea id="msgInput" placeholder="機種名・ゲーム数・状況を入力..." rows="1"></textarea>
+    <button id="sendBtn" onclick="sendMessage()" title="送信">↑</button>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // ── 設定 ──────────────────────────────────────────────
+  const SUPABASE_URL  = 'https://nilaccjhjfzlqswaopwg.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pbGFjY2poamZ6bHFzd2FvcHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3OTUzNjYsImV4cCI6MjA2NDM3MTM2Nn0.lOwIi5fhtYCwKHVcoYWtNdYGJnpD3-4CqqKsurYPh98';
+  const API_BASE      = 'https://13.115.147.98.nip.io';
+
+  // ── Supabase ──────────────────────────────────────────
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const authLoading   = document.getElementById('authLoading');
+  const mainContent   = document.getElementById('mainContent');
+  const userInfoEl    = document.getElementById('userInfo');
+  const chatArea      = document.getElementById('chatArea');
+  const msgInput      = document.getElementById('msgInput');
+  const sendBtn       = document.getElementById('sendBtn');
+
+  // 認証チェック
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    location.href = '../login.html';
+  } else {
+    authLoading.style.display = 'none';
+    mainContent.style.display = 'flex';
+    userInfoEl.textContent = session.user.email;
+    window._supaSession = session;
+  }
+
+  // セッション更新を追跡
+  supabase.auth.onAuthStateChange((_event, s) => {
+    if (!s) location.href = '../login.html';
+    else window._supaSession = s;
+  });
+
+  // ── ヘルパー ──────────────────────────────────────────
+  function appendMsg(role, html) {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    if (typeof html === 'string') div.innerHTML = html;
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return div;
+  }
+
+  function formatResponse(text) {
+    // 【判断】の色分け
+    text = text.replace(/【判断】\s*(打てる)/g, '【判断】 <span class="verdict go">$1</span>');
+    text = text.replace(/【判断】\s*(やめ)/g,   '【判断】 <span class="verdict stop">$1</span>');
+    text = text.replace(/【判断】\s*(条件付き[^\n]*)/g, '【判断】 <span class="verdict cond">$1</span>');
+    // **太字**
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // 改行
+    text = text.replace(/\n/g, '<br>');
+    return text;
+  }
+
+  // ── 送信 ──────────────────────────────────────────────
+  window.sendMessage = async function() {
+    const query = msgInput.value.trim();
+    if (!query || sendBtn.disabled) return;
+
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    appendMsg('user', escapeHtml(query));
+
+    // ローディング表示
+    const botDiv = appendMsg('bot',
+      '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>'
+    );
+
+    try {
+      const session = window._supaSession;
+      const token = session?.access_token;
+
+      const resp = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        botDiv.className = 'msg error';
+        botDiv.textContent = `エラー: ${resp.status} ${err}`;
+        return;
+      }
+
+      // SSEストリーミング
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+      let firstChunk = true;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+
+          try {
+            const event = JSON.parse(data);
+
+            if (event.type === 'tool') {
+              if (firstChunk) {
+                botDiv.innerHTML = '';
+                firstChunk = false;
+              }
+              const badge = document.createElement('div');
+              badge.className = 'tool-badge';
+              badge.innerHTML = `🔍 ${escapeHtml(event.name)}: ${escapeHtml(event.input?.slice(0, 40) ?? '')}`;
+              botDiv.appendChild(badge);
+
+            } else if (event.type === 'text') {
+              if (firstChunk) {
+                botDiv.innerHTML = '';
+                firstChunk = false;
+              }
+              fullText += event.text;
+              // テキストノードを更新（ツールバッジは保持）
+              let textNode = botDiv.querySelector('.response-text');
+              if (!textNode) {
+                textNode = document.createElement('div');
+                textNode.className = 'response-text';
+                botDiv.appendChild(textNode);
+              }
+              textNode.innerHTML = formatResponse(fullText);
+
+            } else if (event.type === 'error') {
+              botDiv.className = 'msg error';
+              botDiv.textContent = event.message;
+            }
+          } catch {}
+          chatArea.scrollTop = chatArea.scrollHeight;
+        }
+      }
+
+      if (firstChunk) {
+        // 何も来なかった
+        botDiv.textContent = '応答がありませんでした。';
+      }
+
+    } catch (err) {
+      botDiv.className = 'msg error';
+      botDiv.textContent = `通信エラー: ${err.message}`;
+    } finally {
+      sendBtn.disabled = false;
+      msgInput.focus();
+    }
+  };
+
+  window.setExample = function(el) {
+    msgInput.value = el.textContent.trim();
+    msgInput.focus();
+  };
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Enterで送信（Shift+Enterで改行）
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // 自動リサイズ
+  msgInput.addEventListener('input', () => {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+  });
+</script>
+</body>
+</html>
