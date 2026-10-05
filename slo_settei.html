@@ -2,61 +2,94 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>スロット設定判別</title>
+  <title>防振り 設定判別</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Noto Sans JP', sans-serif; }
-    input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
-    .bar-fill { transition: width 0.3s cubic-bezier(.4,0,.2,1); }
-    details > summary { list-style: none; }
-    details > summary::-webkit-details-marker { display: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f5f5f5; color: #111; font-family: system-ui, -apple-system, sans-serif; padding: 1.5rem 1rem; }
+    h1 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .sub { font-size: 0.8rem; color: #888; margin-bottom: 1.5rem; }
+
+    .section { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; max-width: 600px; }
+    .section-title { font-size: 0.78rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 0.75rem; }
+
+    /* Result bars */
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .bar-label { width: 3rem; font-size: 0.8rem; text-align: right; color: #555; flex-shrink: 0; }
+    .bar-track { flex: 1; background: #eee; border-radius: 3px; height: 14px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.25s; }
+    .bar-pct { width: 3.5rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; text-align: right; flex-shrink: 0; }
+    .bar-row.top .bar-label { font-weight: 700; color: #111; }
+    .bar-row.top .bar-pct { font-weight: 700; }
+
+    /* Prior sliders */
+    .prior-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem 1rem; }
+    .prior-item label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; margin-bottom: 0.25rem; }
+    .prior-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .prior-item input[type=range] { width: 100%; accent-color: #555; height: 4px; }
+    .prior-pct { font-size: 0.75rem; color: #888; font-variant-numeric: tabular-nums; }
+    .prior-actions { margin-top: 0.6rem; display: flex; gap: 0.5rem; }
+    .btn-small { font-size: 0.75rem; padding: 0.25rem 0.7rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; color: #555; }
+    .btn-small:hover { background: #f0f0f0; }
+
+    /* Metric inputs */
+    .metric { border-bottom: 1px solid #f0f0f0; padding-bottom: 0.9rem; margin-bottom: 0.9rem; }
+    .metric:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+    .metric-name { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.55rem; }
+    .input-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .input-item { display: flex; flex-direction: column; gap: 0.18rem; min-width: 100px; flex: 1; }
+    .input-item label { font-size: 0.72rem; color: #777; }
+    .input-item input { padding: 0.35rem 0.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; font-variant-numeric: tabular-nums; background: #fafafa; width: 100%; }
+    .input-item input:focus { outline: 1px solid #aaa; background: #fff; }
+
+    /* Ref table */
+    details { margin-top: 0.5rem; }
+    summary { font-size: 0.72rem; color: #bbb; cursor: pointer; user-select: none; }
+    summary:hover { color: #888; }
+    .ref-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 0.3rem; }
+    .ref-table th { color: #aaa; font-weight: 500; text-align: left; padding: 0.15rem 0.3rem; border-bottom: 1px solid #eee; }
+    .ref-table td { padding: 0.15rem 0.3rem; color: #777; border-bottom: 1px solid #f5f5f5; }
+    .ref-table tr:last-child td { border-bottom: none; }
+
+    .reset-link { display: block; max-width: 600px; margin: 0.5rem 0 1.5rem; text-align: right; }
+    .reset-link button { font-size: 0.78rem; color: #aaa; background: none; border: none; cursor: pointer; }
+    .reset-link button:hover { color: #555; }
+
+    .back { display: block; max-width: 600px; margin-top: 1rem; font-size: 0.82rem; color: #aaa; text-decoration: none; }
+    .back:hover { color: #555; }
   </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white">
+<body>
 
-  <!-- Header -->
-  <header class="pt-10 pb-6 text-center px-4">
-    <h1 class="text-3xl font-black tracking-tight bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-      スロット設定判別
-    </h1>
-    <p class="mt-1 text-sm text-slate-400">観測データを入力 → 設定確率をリアルタイム推定（ベイズ推定）</p>
-  </header>
+<h1>防振り 設定判別</h1>
+<p class="sub">ベイズ推定 — 観測データを入力すると設定確率をリアルタイム更新します</p>
 
-  <!-- Machine tabs -->
-  <div class="flex flex-wrap gap-2 justify-center px-4 mb-8" id="machineTabs"></div>
+<!-- 結果 -->
+<div class="section">
+  <div class="section-title">設定確率</div>
+  <div id="bars"></div>
+</div>
 
-  <!-- Sticky result panel -->
-  <div class="sticky top-2 z-20 px-4 mb-6 max-w-2xl mx-auto">
-    <div class="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-5">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-xs font-medium text-slate-400 uppercase tracking-widest">設定確率推定</span>
-        <span class="text-xl font-black" id="topBadge">—</span>
-      </div>
-      <div id="bars" class="space-y-2"></div>
-    </div>
+<!-- 事前確率 -->
+<div class="section">
+  <div class="section-title">事前確率（設定比率の想定）</div>
+  <div class="prior-grid" id="priorGrid"></div>
+  <div class="prior-actions">
+    <button class="btn-small" id="priorEqual">均等にリセット</button>
+    <button class="btn-small" id="priorLow">低設定寄り</button>
+    <button class="btn-small" id="priorHigh">高設定寄り</button>
   </div>
+</div>
 
-  <!-- Reset -->
-  <div class="max-w-2xl mx-auto px-4 mb-4 flex justify-end">
-    <button id="resetBtn"
-      class="text-xs text-slate-400 border border-slate-700 rounded-lg px-4 py-2 hover:bg-white/5 transition">
-      カウントリセット
-    </button>
-  </div>
+<div class="reset-link"><button id="resetBtn">カウントをリセット</button></div>
 
-  <!-- Metric cards -->
-  <div id="metrics" class="max-w-2xl mx-auto px-4 pb-12 space-y-3"></div>
+<!-- 指標入力 -->
+<div class="section" id="metrics"></div>
 
-  <div class="text-center pb-10">
-    <a href="settings.html" class="text-sm text-slate-500 hover:text-violet-400 transition">← 設定判別へ</a>
-  </div>
+<a class="back" href="settings.html">← 設定判別へ</a>
 
 <script>
-// ── Machine data ─────────────────────────────────
-const MACHINES = [
-{
+const MACHINE = {
   name: "防振り",
   metrics: [
     { name:"上段5枚ベル出現率", type:"binomial", successLabel:"上段ベル回数", trialsLabel:"総ゲーム数",
@@ -96,196 +129,142 @@ const MACHINES = [
       categoryLabels:["青背景","銀翼","樹皇","ミィ","ペイン","機械神","大天使メイプル","ドラぞう","運営"],
       probs:[[0.8085,0.1300,0.0500,0.0100,0.0010,0.0005,0.0000,0.0000,0.0000],[0.7990,0.1340,0.0520,0.0120,0.0025,0.0000,0.0005,0.0000,0.0000],[0.7680,0.1380,0.0540,0.0120,0.0025,0.0005,0.0000,0.0250,0.0000],[0.6825,0.1420,0.0560,0.0200,0.0100,0.0020,0.0625,0.0250,0.0000],[0.6640,0.1460,0.0580,0.0200,0.0125,0.0625,0.0020,0.0250,0.0100],[0.5899,0.1500,0.0600,0.0250,0.0150,0.0625,0.0625,0.0250,0.0100]] }
   ]
-},
-{
-  name: "北斗の拳",
-  metrics: [
-    { name:"弱スイカ確率", type:"binomial", successLabel:"弱スイカ回数", trialsLabel:"総ゲーム数",
-      probs:[1/109.0,1/108.7,1/108.7,1/105.9,1/100.7,1/98.3] },
-    { name:"強スイカ合算確率", type:"binomial", successLabel:"強スイカ回数", trialsLabel:"総ゲーム数",
-      probs:[1/409.6,1/404.5,1/404.5,1/376.6,1/352.3,1/337.8] },
-    { name:"中段チェリー合算確率", type:"binomial", successLabel:"中段チェリー回数", trialsLabel:"総ゲーム数",
-      probs:[1/210.1,1/204.8,1/204.8,1/199.8,1/195.0,1/190.5] },
-    { name:"リーチ目役確率", type:"binomial", successLabel:"リーチ目役回数", trialsLabel:"総ゲーム数",
-      probs:[1/16384,1/13107.2,1/13107.2,1/10922.7,1/9362.3,1/8192] },
-    { name:"BB継続率分布（全BB平均）", type:"multinomial", categoryLabels:["66%","79%","84%","89%"],
-      probs:[[0.6134,0.2891,0.0533,0.0442],[0.6169,0.2884,0.0521,0.0426],[0.6169,0.2884,0.0521,0.0426],[0.6310,0.2877,0.0468,0.0345],[0.6373,0.2865,0.0446,0.0316],[0.6396,0.2862,0.0431,0.0311]] },
-    { name:"［設定変更時］内部状態移行率", type:"multinomial", categoryLabels:["地獄","通常","天国","本前兆"],
-      probs:[[0.4873,0.3307,0.1757,0.0063],[0.4759,0.3345,0.1832,0.0064],[0.4759,0.3345,0.1832,0.0064],[0.3915,0.3632,0.2347,0.0107],[0.3495,0.3778,0.2607,0.0120],[0.3001,0.4075,0.2792,0.0132]] },
-    { name:"［BB終了後］内部状態移行率", type:"multinomial", categoryLabels:["地獄","通常","天国","本前兆"],
-      probs:[[0.4217,0.3130,0.2582,0.0071],[0.4197,0.3150,0.2582,0.0071],[0.4197,0.3150,0.2582,0.0071],[0.3750,0.3154,0.3024,0.0072],[0.3424,0.3123,0.3380,0.0073],[0.3155,0.3176,0.3594,0.0074]] },
-    { name:"BB終了時ボイス（1G連非当選時）", type:"multinomial", categoryLabels:["シン","サウザー","ジャギ","アミバ","その他"],
-      probs:[[0.0565,0.0504,0.0336,0.0122,0.8473],[0.0610,0.0534,0.0381,0.0153,0.8322],[0.0610,0.0534,0.0381,0.0153,0.8322],[0.0626,0.0626,0.0626,0.0626,0.7496],[0.0671,0.0671,0.0671,0.0671,0.7316],[0.0717,0.0717,0.0717,0.0717,0.7132]] }
-  ]
-},
-{
-  name: "カバネリ",
-  metrics: [
-    { name:"ボーナス合算", type:"binomial", successLabel:"ボーナス回数", trialsLabel:"総ゲーム数",
-      probs:[1/237.0,1/230.7,1/214.0,1/186.5,1/171.3,1/151.3] },
-    { name:"ST合算", type:"binomial", successLabel:"ST回数", trialsLabel:"総ゲーム数",
-      probs:[1/407.9,1/393.2,1/372.4,1/327.2,1/307.3,1/290.6] },
-    { name:"共通6枚ベル", type:"binomial", successLabel:"共通6枚ベル回数", trialsLabel:"総ゲーム数",
-      probs:[1/26.6,1/26.6,1/25.9,1/25.4,1/24.9,1/24.2] },
-    { name:"無名CZ 2択ナビ発生率（非小役時）", type:"binomial", successLabel:"ナビ発生回数", trialsLabel:"対象成立回数",
-      probs:[0.481,0.481,0.503,0.539,0.562,0.628] },
-    { name:"無名CZ 3連撃 成功率", type:"binomial", successLabel:"成功回数", trialsLabel:"3連撃到達回数",
-      probs:[0.187,0.188,0.235,0.283,0.306,0.407] },
-    { name:"CZ減算pt（通常・複合チャンス目）", type:"multinomial", categoryLabels:["15pt","30pt","60pt","120pt"],
-      probs:[[0.933,0.063,0.004,0.0],[0.933,0.063,0.004,0.0],[0.929,0.067,0.004,0.0],[0.896,0.100,0.004,0.0],[0.800,0.196,0.004,0.0],[0.796,0.200,0.004,0.0]] },
-    { name:"CZ減算pt（高確・複合チャンス目）", type:"multinomial", categoryLabels:["15pt","30pt","60pt","120pt"],
-      probs:[[0.0,0.933,0.063,0.004],[0.0,0.933,0.063,0.004],[0.0,0.929,0.067,0.004],[0.0,0.896,0.100,0.004],[0.0,0.800,0.196,0.004],[0.0,0.796,0.200,0.004]] },
-    { name:"CZ失敗時 BBランクアップ（無名/生駒）", type:"multinomial", categoryLabels:["+1UP","+3UP","なし"],
-      probs:[[0.200,0.004,0.796],[0.300,0.004,0.696],[0.300,0.004,0.696],[0.450,0.004,0.546],[0.454,0.004,0.542],[0.496,0.004,0.500]] },
-    { name:"おみくじ（示唆）出現", type:"multinomial", categoryLabels:["小吉(銅)","中吉(銀)","大吉(金)","その他"],
-      probs:[[0.0,0.0,0.0,1.0],[1/6553,0.0,0.0,1.0],[1/6553,0.0,0.0,1.0],[1/8192,1/32768,0.0,1.0],[1/9362,1/21845,0.0,1.0],[1/9362,1/32768,1/65536,1.0]] }
-  ]
-}
-];
+};
 
-// ── Bayesian inference ────────────────────────────
-function infer(machine, obsArr) {
-  const eps = 1e-12;
-  const logP = Array(6).fill(Math.log(1/6));
-  for (let mi = 0; mi < machine.metrics.length; mi++) {
-    const m = machine.metrics[mi];
-    const obs = obsArr[mi] || [];
-    if (obs.reduce((a,b)=>a+b,0) === 0) continue;
-    for (let s = 0; s < 6; s++) {
-      const raw = m.type==='binomial' ? [m.probs[s], 1-m.probs[s]] : m.probs[s];
-      const sumR = raw.reduce((a,b)=>a+b,0) || 1;
-      const p = raw.map(x => Math.min(1-eps, Math.max(eps, x/sumR)));
-      const k = Math.min(obs.length, p.length);
-      for (let i=0; i<k; i++) logP[s] += obs[i] * Math.log(p[i]);
-    }
-  }
-  const mx = Math.max(...logP);
-  const w = logP.map(v => Math.exp(v-mx));
-  const z = w.reduce((a,b)=>a+b,0) || 1;
-  return w.map(x => x/z*100);
-}
+// setting colors (subtle)
+const SC = ['#9ca3af','#60a5fa','#34d399','#fb923c','#f472b6','#fbbf24'];
+const SL = ['設定1','設定2','設定3','設定4','設定5','設定6'];
 
 // ── State ─────────────────────────────────────────
-let machIdx = 0;
 let inputs = [];
+let priorW = [1, 1, 1, 1, 1, 1]; // raw weights (0–100)
 
-function getObs(machine) {
-  return machine.metrics.map((m, mi) => {
+function normPrior() {
+  const s = priorW.reduce((a,b)=>a+b,0) || 1;
+  return priorW.map(w => w/s);
+}
+
+// ── Inference ─────────────────────────────────────
+function infer() {
+  const eps = 1e-12;
+  const prior = normPrior();
+  const logP = prior.map(p => Math.log(Math.max(eps, p)));
+
+  for (let mi = 0; mi < MACHINE.metrics.length; mi++) {
+    const m = MACHINE.metrics[mi];
     const r = inputs[mi] || [];
-    if (m.type === 'binomial') {
-      const suc = r[0]||0, tot = r[1]||0;
-      return [suc, Math.max(0, tot-suc)];
+    const obs = m.type === 'binomial'
+      ? [r[0]||0, Math.max(0,(r[1]||0)-(r[0]||0))]
+      : r.map(v=>v||0);
+    if (obs.reduce((a,b)=>a+b,0) === 0) continue;
+
+    for (let s = 0; s < 6; s++) {
+      const raw = m.type==='binomial' ? [m.probs[s], 1-m.probs[s]] : m.probs[s];
+      const sumR = raw.reduce((a,b)=>a+b,0)||1;
+      const p = raw.map(x => Math.min(1-eps, Math.max(eps, x/sumR)));
+      const k = Math.min(obs.length, p.length);
+      for (let i=0; i<k; i++) logP[s] += obs[i]*Math.log(p[i]);
     }
-    return r.map(v => v||0);
-  });
-}
-
-// ── Setting theme ─────────────────────────────────
-const S_META = [
-  { label:'設定1', color:'#94a3b8', bg:'bg-slate-400'   },
-  { label:'設定2', color:'#60a5fa', bg:'bg-blue-400'    },
-  { label:'設定3', color:'#34d399', bg:'bg-emerald-400' },
-  { label:'設定4', color:'#fb923c', bg:'bg-orange-400'  },
-  { label:'設定5', color:'#f472b6', bg:'bg-pink-400'    },
-  { label:'設定6', color:'#fbbf24', bg:'bg-amber-400'   },
-];
-
-// ── Render ────────────────────────────────────────
-function renderTabs() {
-  const el = document.getElementById('machineTabs');
-  el.innerHTML = MACHINES.map((m, i) => `
-    <button data-i="${i}" class="machine-tab px-5 py-2 rounded-full text-sm font-semibold border transition-all
-      ${i===machIdx
-        ? 'bg-violet-500 border-violet-400 text-white shadow-lg shadow-violet-500/30'
-        : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
-      }">${m.name}</button>
-  `).join('');
-  el.querySelectorAll('button').forEach(b => {
-    b.onclick = () => { machIdx=+b.dataset.i; inputs=[]; renderTabs(); renderMetrics(); updateResults(); };
-  });
-}
-
-function updateResults() {
-  const probs = infer(MACHINES[machIdx], getObs(MACHINES[machIdx]));
-  const top = probs.indexOf(Math.max(...probs));
-  const badge = document.getElementById('topBadge');
-  badge.textContent = S_META[top].label;
-  badge.style.color = S_META[top].color;
-  document.getElementById('bars').innerHTML = probs.map((p, i) => `
-    <div class="flex items-center gap-3">
-      <span class="w-10 text-right text-xs font-semibold shrink-0" style="color:${S_META[i].color}">${S_META[i].label.replace('設定','S')}</span>
-      <div class="flex-1 h-3 bg-white/5 rounded-full overflow-hidden">
-        <div class="bar-fill h-full rounded-full" style="width:${p.toFixed(2)}%;background:${S_META[i].color}"></div>
-      </div>
-      <span class="w-12 text-right text-xs font-mono shrink-0 ${i===top?'font-bold':'text-slate-400'}"
-        style="${i===top?'color:'+S_META[i].color:''}">${p.toFixed(1)}%</span>
-    </div>
-  `).join('');
-}
-
-function refTable(m) {
-  if (m.type === 'binomial') {
-    const rows = S_META.map((sm, i) => {
-      const q = m.probs[i];
-      return `<tr><td class="py-0.5 pr-3 text-slate-400">${sm.label}</td><td class="py-0.5 pr-3 tabular-nums">${(q*100).toFixed(3)}%</td><td class="py-0.5 tabular-nums text-slate-400">1/${(1/q).toFixed(1)}</td></tr>`;
-    }).join('');
-    return `<details class="mt-3"><summary class="text-xs text-slate-600 hover:text-slate-400 cursor-pointer select-none">参考確率 ▾</summary>
-      <table class="mt-2 text-xs w-full"><thead><tr class="text-slate-500"><th class="text-left pb-1">設定</th><th class="text-left pb-1">確率</th><th class="text-left pb-1">分母</th></tr></thead><tbody>${rows}</tbody></table>
-    </details>`;
   }
-  const hdr = m.categoryLabels.map(c=>`<th class="pb-1 pr-2">${c}</th>`).join('');
-  const rows = S_META.map((sm, i) => {
-    const ps=m.probs[i], s=ps.reduce((a,b)=>a+b,0)||1;
-    return `<tr><td class="pr-2 py-0.5 text-slate-400">${sm.label}</td>${ps.map(p=>`<td class="pr-2 py-0.5 tabular-nums">${(p/s*100).toFixed(1)}%</td>`).join('')}</tr>`;
-  }).join('');
-  return `<details class="mt-3"><summary class="text-xs text-slate-600 hover:text-slate-400 cursor-pointer select-none">参考確率 ▾</summary>
-    <div class="overflow-x-auto mt-2"><table class="text-xs whitespace-nowrap"><thead><tr class="text-slate-500"><th class="pr-2 pb-1 text-left">設定</th>${hdr}</tr></thead><tbody>${rows}</tbody></table></div>
-  </details>`;
+
+  const mx = Math.max(...logP);
+  const w = logP.map(v=>Math.exp(v-mx));
+  const z = w.reduce((a,b)=>a+b,0)||1;
+  return w.map(x=>x/z*100);
 }
 
-function renderMetrics() {
-  const machine = MACHINES[machIdx];
-  const el = document.getElementById('metrics');
-  el.innerHTML = '';
-  machine.metrics.forEach((m, mi) => {
-    const card = document.createElement('div');
-    card.className = 'rounded-2xl bg-white/5 border border-white/10 p-4';
-    let inp;
-    if (m.type === 'binomial') {
-      const sv=inputs[mi]?.[0]??'', tv=inputs[mi]?.[1]??'';
-      inp = `<div class="grid grid-cols-2 gap-3 mt-3">
-        <label class="block"><span class="block text-xs text-slate-500 mb-1">${m.trialsLabel}</span>
-          <input type="number" inputmode="numeric" min="0" value="${tv}" placeholder="0" data-mi="${mi}" data-ci="1"
-            class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500 focus:bg-white/10 transition"></label>
-        <label class="block"><span class="block text-xs text-slate-500 mb-1">${m.successLabel}</span>
-          <input type="number" inputmode="numeric" min="0" value="${sv}" placeholder="0" data-mi="${mi}" data-ci="0"
-            class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500 focus:bg-white/10 transition"></label>
-      </div>`;
-    } else {
-      const cats = m.categoryLabels.map((c,ci)=>`
-        <label class="block"><span class="block text-xs text-slate-500 mb-1">${c}</span>
-          <input type="number" inputmode="numeric" min="0" value="${inputs[mi]?.[ci]??''}" placeholder="0" data-mi="${mi}" data-ci="${ci}"
-            class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-violet-500 focus:bg-white/10 transition"></label>`).join('');
-      inp = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">${cats}</div>`;
-    }
-    card.innerHTML = `<p class="text-sm font-semibold text-slate-200">${m.name}</p>${inp}${refTable(m)}`;
-    el.appendChild(card);
-  });
-  el.querySelectorAll('input[data-mi]').forEach(inp => {
-    inp.addEventListener('input', () => {
-      const mi=+inp.dataset.mi, ci=+inp.dataset.ci;
-      if (!inputs[mi]) inputs[mi]=[];
-      inputs[mi][ci]=Math.max(0,parseInt(inp.value)||0);
-      updateResults();
+// ── Result bars ────────────────────────────────────
+function updateBars() {
+  const probs = infer();
+  const top = probs.indexOf(Math.max(...probs));
+  document.getElementById('bars').innerHTML = probs.map((p, i) => `
+    <div class="bar-row${i===top?' top':''}">
+      <div class="bar-label" style="${i===top?'color:'+SC[i]:''}">${SL[i]}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${p.toFixed(2)}%;background:${SC[i]}"></div>
+      </div>
+      <div class="bar-pct" style="${i===top?'color:'+SC[i]:''}">${p.toFixed(1)}%</div>
+    </div>`).join('');
+}
+
+// ── Prior sliders ──────────────────────────────────
+function renderPrior() {
+  const norm = normPrior();
+  document.getElementById('priorGrid').innerHTML = SL.map((lbl, i) => `
+    <div class="prior-item">
+      <label>
+        <span class="prior-dot" style="background:${SC[i]}"></span>
+        <span>${lbl}</span>
+        <span class="prior-pct">${(norm[i]*100).toFixed(0)}%</span>
+      </label>
+      <input type="range" min="0" max="100" step="1" value="${priorW[i]}" data-pi="${i}">
+    </div>`).join('');
+  document.querySelectorAll('input[data-pi]').forEach(sl => {
+    sl.addEventListener('input', () => {
+      priorW[+sl.dataset.pi] = +sl.value;
+      renderPrior();
+      updateBars();
     });
   });
 }
 
-document.getElementById('resetBtn').onclick = () => { inputs=[]; renderMetrics(); updateResults(); };
+function setPrior(weights) {
+  priorW = [...weights];
+  renderPrior();
+  updateBars();
+}
 
-renderTabs();
+document.getElementById('priorEqual').onclick = () => setPrior([1,1,1,1,1,1]);
+document.getElementById('priorLow').onclick   = () => setPrior([40,25,15,10,6,4]);
+document.getElementById('priorHigh').onclick  = () => setPrior([4,6,10,15,25,40]);
+
+// ── Metric cards ───────────────────────────────────
+function refTable(m) {
+  if (m.type === 'binomial') {
+    const rows = SL.map((l,i)=>{const q=m.probs[i];return`<tr><td>${l}</td><td>${(q*100).toFixed(3)}%</td><td>1/${(1/q).toFixed(1)}</td></tr>`;}).join('');
+    return`<details><summary>参考確率</summary><table class="ref-table"><thead><tr><th>設定</th><th>確率</th><th>分母</th></tr></thead><tbody>${rows}</tbody></table></details>`;
+  }
+  const hdr=m.categoryLabels.map(c=>`<th>${c}</th>`).join('');
+  const rows=SL.map((l,i)=>{const ps=m.probs[i],s=ps.reduce((a,b)=>a+b,0)||1;return`<tr><td>${l}</td>${ps.map(p=>`<td>${(p/s*100).toFixed(1)}%</td>`).join('')}</tr>`;}).join('');
+  return`<details><summary>参考確率</summary><div style="overflow-x:auto"><table class="ref-table"><thead><tr><th>設定</th>${hdr}</tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+
+function renderMetrics() {
+  const el = document.getElementById('metrics');
+  el.innerHTML = `<div class="section-title">指標入力</div>`;
+  MACHINE.metrics.forEach((m, mi) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'metric';
+    let inp;
+    if (m.type === 'binomial') {
+      const sv=inputs[mi]?.[0]??'', tv=inputs[mi]?.[1]??'';
+      inp=`<div class="input-row">
+        <div class="input-item"><label>${m.trialsLabel}</label><input type="number" inputmode="numeric" min="0" value="${tv}" placeholder="0" data-mi="${mi}" data-ci="1"></div>
+        <div class="input-item"><label>${m.successLabel}</label><input type="number" inputmode="numeric" min="0" value="${sv}" placeholder="0" data-mi="${mi}" data-ci="0"></div>
+      </div>`;
+    } else {
+      inp=`<div class="input-row">${m.categoryLabels.map((c,ci)=>`
+        <div class="input-item"><label>${c}</label><input type="number" inputmode="numeric" min="0" value="${inputs[mi]?.[ci]??''}" placeholder="0" data-mi="${mi}" data-ci="${ci}"></div>`).join('')}</div>`;
+    }
+    wrap.innerHTML=`<div class="metric-name">${m.name}</div>${inp}${refTable(m)}`;
+    el.appendChild(wrap);
+  });
+  el.querySelectorAll('input[data-mi]').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const mi=+inp.dataset.mi,ci=+inp.dataset.ci;
+      if(!inputs[mi])inputs[mi]=[];
+      inputs[mi][ci]=Math.max(0,parseInt(inp.value)||0);
+      updateBars();
+    });
+  });
+}
+
+document.getElementById('resetBtn').onclick = () => { inputs=[]; renderMetrics(); updateBars(); };
+
+// init
+renderPrior();
 renderMetrics();
-updateResults();
+updateBars();
 </script>
 </body>
 </html>
