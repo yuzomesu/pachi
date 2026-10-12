@@ -23,13 +23,7 @@
 <body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 flex flex-col items-center p-4">
 
   <!-- ── Header ─────────────────────────────── -->
-  <header class="w-full max-w-4xl mb-10 flex items-center justify-between animate-fade-in">
-    <!-- ▼ パチンコ/スロット モード切替 -->
-    <div id="modeToggle" class="flex items-center gap-1 rounded-full bg-white/70 border border-gray-200 p-1 shadow-sm">
-      <button id="modePachinko" class="px-3 py-1.5 rounded-full text-sm font-semibold transition">パチンコ</button>
-      <button id="modeSlot" class="px-3 py-1.5 rounded-full text-sm font-semibold transition">スロット</button>
-    </div>
-
+  <header class="w-full max-w-4xl mb-4 flex items-center justify-between animate-fade-in">
     <div class="text-center flex-1">
       <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 drop-shadow-sm">
         メインページ
@@ -44,6 +38,14 @@
       ログイン
     </button>
   </header>
+
+  <!-- ▼ パチンコ/スロット モード切替 -->
+  <div class="w-full max-w-4xl mb-8 flex justify-center">
+    <div id="modeToggle" class="flex items-center gap-1 rounded-full bg-white/70 border border-gray-200 p-1 shadow-sm">
+      <button id="modePachinko" class="px-4 py-1.5 rounded-full text-sm font-semibold transition">パチンコ</button>
+      <button id="modeSlot" class="px-4 py-1.5 rounded-full text-sm font-semibold transition">スロット</button>
+    </div>
+  </div>
 
   <!-- ── Main Links ─────────────────────────── -->
   <main class="w-full max-w-md space-y-6">
