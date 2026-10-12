@@ -83,10 +83,11 @@
   </div>
 
 <script type="module">
-// 地域 → 店舗(hall_key) の対応。今はまず東京のみ、プレサス・木場のみ対応。
+// 地域 → 店舗(hall_key) の対応。今はまず東京のみ。
 // 店舗を追加するときはここに hall_key を増やすだけでよい（Supabase側のデータがあれば自動で機種一覧も出る）。
 const REGIONS = {
-  "東京": ["presas", "kiba"],
+  "東京": ["presas", "kiba", "suidobashi", "kinshicho", "island_akihabara"],
+  "名古屋": ["taiyo"],
 };
 const ALL_MACHINES = ""; // machineSelect の「全機種」値
 
