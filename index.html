@@ -24,6 +24,12 @@
 
   <!-- ── Header ─────────────────────────────── -->
   <header class="w-full max-w-4xl mb-10 flex items-center justify-between animate-fade-in">
+    <!-- ▼ パチンコ/スロット モード切替 -->
+    <div id="modeToggle" class="flex items-center gap-1 rounded-full bg-white/70 border border-gray-200 p-1 shadow-sm">
+      <button id="modePachinko" class="px-3 py-1.5 rounded-full text-sm font-semibold transition">パチンコ</button>
+      <button id="modeSlot" class="px-3 py-1.5 rounded-full text-sm font-semibold transition">スロット</button>
+    </div>
+
     <div class="text-center flex-1">
       <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 drop-shadow-sm">
         メインページ
@@ -43,7 +49,7 @@
   <main class="w-full max-w-md space-y-6">
     <ul class="grid gap-6">
       <!-- 既存リンク（省略なし） -->
-       <li>
+       <li data-mode="slot">
           <a
             href="slo/index.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -57,7 +63,7 @@
             </div>
           </a>
         </li>
-       <li>
+       <li data-mode="pachinko">
           <a
             href="dekidai.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -71,7 +77,71 @@
             </div>
           </a>
         </li>
-        <li>
+       <li data-mode="pachinko">
+          <a
+            href="dekidai-browse.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">台データ閲覧</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6 transition-transform group-hover:translate-x-1">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </div>
+          </a>
+        </li>
+       <li data-mode="pachinko">
+          <a
+            href="expect/boder.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">ボーダー計算ツール</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+       <li data-mode="slot">
+          <a
+            href="settings.html"
+            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
+          >
+            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
+            <div class="relative z-10 flex items-center justify-between">
+              <span class="text-lg font-semibold">設定判別</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-6 w-6 transition-transform group-hover:translate-x-1"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </div>
+          </a>
+        </li>
+        <li data-mode="pachinko">
           <a
             href="expect/machine.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -121,14 +191,14 @@
             </div>
           </a>
         </li>
-       <li>
+       <li data-mode="pachinko">
           <a
-            href="expect/boder.html"
+            href="nori.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
           >
             <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
             <div class="relative z-10 flex items-center justify-between">
-              <span class="text-lg font-semibold">ボーダー計算ツール</span>
+              <span class="text-lg font-semibold">乗り打ち計算</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -171,32 +241,7 @@
             </div>
           </a>
         </li>
-       <li>
-          <a
-            href="nori.html"
-            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
-          >
-            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
-            <div class="relative z-10 flex items-center justify-between">
-              <span class="text-lg font-semibold">乗り打ち計算</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="h-6 w-6 transition-transform group-hover:translate-x-1"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                />
-              </svg>
-            </div>
-          </a>
-        </li>
-       <li>
+       <li data-mode="pachinko">
           <a
             href="umi_special.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -210,7 +255,7 @@
             </div>
           </a>
         </li>
-       <li>
+       <li data-mode="pachinko">
           <a
             href="sim/index.html"
             class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
@@ -235,62 +280,40 @@
             </div>
           </a>
         </li>
-       <li>
-          <a
-            href="settings.html"
-            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
-          >
-            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
-            <div class="relative z-10 flex items-center justify-between">
-              <span class="text-lg font-semibold">設定判別</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="h-6 w-6 transition-transform group-hover:translate-x-1"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                />
-              </svg>
-            </div>
-          </a>
-        </li>
-       <li>
-          <a
-            href="expect/ranking.html"
-            class="group relative block rounded-2xl border border-gray-200 bg-white/70 backdrop-blur-lg p-6 shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl"
-          >
-            <span class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 to-sky-500 opacity-0 transition-opacity group-hover:opacity-30"></span>
-            <div class="relative z-10 flex items-center justify-between">
-              <span class="text-lg font-semibold">全体集計</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="h-6 w-6 transition-transform group-hover:translate-x-1"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                />
-              </svg>
-            </div>
-          </a>
-        </li>
     </ul>
   </main>
 
   <footer class="mt-12 text-sm text-gray-400">
     &copy; 2025 yuzo All rights reserved.
   </footer>
+
+  <!-- ── パチンコ/スロット モード切替 ─────────── -->
+  <script>
+    (function () {
+      const btnPachinko = document.getElementById('modePachinko');
+      const btnSlot = document.getElementById('modeSlot');
+      const ACTIVE = ['bg-indigo-600', 'text-white'];
+      const INACTIVE = ['text-gray-600'];
+
+      function setMode(mode) {
+        document.querySelectorAll('[data-mode]').forEach((el) => {
+          el.hidden = el.dataset.mode !== mode;
+        });
+        btnPachinko.classList.remove(...ACTIVE, ...INACTIVE);
+        btnSlot.classList.remove(...ACTIVE, ...INACTIVE);
+        (mode === 'pachinko' ? btnPachinko : btnSlot).classList.add(...ACTIVE);
+        (mode === 'pachinko' ? btnSlot : btnPachinko).classList.add(...INACTIVE);
+        try { localStorage.setItem('pachiSiteMode', mode); } catch (_) {}
+      }
+
+      let savedMode = 'pachinko';
+      try { savedMode = localStorage.getItem('pachiSiteMode') || 'pachinko'; } catch (_) {}
+      setMode(savedMode);
+
+      btnPachinko.addEventListener('click', () => setMode('pachinko'));
+      btnSlot.addEventListener('click', () => setMode('slot'));
+    })();
+  </script>
 
   <!-- ── Login / Logout ロジック ─────────────── -->
   <script type="module">

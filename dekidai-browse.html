@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台データ閲覧</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    table.list th, table.list td { padding: 6px 10px; border-bottom: 1px solid #eee; text-align: right; }
+    table.list th:nth-child(1), table.list td:nth-child(1),
+    table.list th:nth-child(2), table.list td:nth-child(2) { text-align: left; }
+    table.list th { color: #666; font-weight: 500; background: #fafafa; position: sticky; top: 0; }
+    select, input[type=number] { appearance: none; }
+  </style>
+
+  <!-- Supabase Client（anon key。RLSで読み取り専用に制限済みなので公開して問題ない） -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    window.supabase = createClient('https://nilaccjhjfzlqswaopwg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pbGFjY2poamZ6bHFzd2FvcHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3OTUzNjYsImV4cCI6MjA2NDM3MTM2Nn0.lOwIi5fhtYCwKHVcoYWtNdYGJnpD3-4CqqKsurYPh98');
+  </script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-100 p-4">
+
+  <div class="max-w-3xl mx-auto">
+    <header class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800">台データ閲覧</h1>
+        <p class="mt-1 text-gray-500 text-sm">地域 → 店舗 → 機種 → 日付の順に選んで、その日の1k回転データを一覧表示します。</p>
+      </div>
+      <a href="index.html" class="text-sm text-indigo-600 hover:underline whitespace-nowrap ml-4">← メインページ</a>
+    </header>
+
+    <div class="bg-white/80 backdrop-blur rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <label class="block">
+          <span class="text-xs text-gray-500">地域</span>
+          <select id="regionSelect" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></select>
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">店舗</span>
+          <select id="hallSelect" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></select>
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">機種</span>
+          <select id="machineSelect" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></select>
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">日付</span>
+          <select id="dateSelect" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></select>
+        </label>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+        <div>
+          <span class="text-xs text-gray-500">1k回転フィルタ</span>
+          <div class="mt-1 flex items-center gap-2">
+            <input id="rateMin" type="number" step="0.1" value="17" class="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+            <span class="text-gray-400 text-sm">〜</span>
+            <input id="rateMax" type="number" step="0.1" value="24" class="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+          </div>
+        </div>
+        <div>
+          <span class="text-xs text-gray-500">その日の総回転数フィルタ（以上）</span>
+          <div class="mt-1 flex items-center gap-2">
+            <input id="cumMin" type="number" step="1" value="300" class="w-24 rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+            <span class="text-gray-400 text-sm">回転以上</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <p id="status" class="text-gray-500 text-sm mb-2"></p>
+      <div id="content"></div>
+    </div>
+  </div>
+
+<script type="module">
+// 地域 → 店舗(hall_key) の対応。今はまず東京のみ、プレサス・木場のみ対応。
+// 店舗を追加するときはここに hall_key を増やすだけでよい（Supabase側のデータがあれば自動で機種一覧も出る）。
+const REGIONS = {
+  "東京": ["presas", "kiba"],
+};
+const ALL_MACHINES = ""; // machineSelect の「全機種」値
+
+const regionSelect = document.getElementById("regionSelect");
+const hallSelect = document.getElementById("hallSelect");
+const machineSelect = document.getElementById("machineSelect");
+const dateSelect = document.getElementById("dateSelect");
+const rateMinInput = document.getElementById("rateMin");
+const rateMaxInput = document.getElementById("rateMax");
+const cumMinInput = document.getElementById("cumMin");
+const statusEl = document.getElementById("status");
+const contentEl = document.getElementById("content");
+
+function fmt(n, digits = 1) {
+  return n == null ? "–" : Number(n).toFixed(digits);
+}
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function numOrNull(el) {
+  const v = el.value.trim();
+  return v === "" ? null : Number(v);
+}
+
+function populateRegions() {
+  regionSelect.innerHTML = Object.keys(REGIONS)
+    .map(r => `<option value="${esc(r)}">${esc(r)}</option>`)
+    .join("");
+}
+
+async function populateHalls() {
+  const hallKeys = REGIONS[regionSelect.value] || [];
+  if (!hallKeys.length) {
+    hallSelect.innerHTML = `<option value="">(データなし)</option>`;
+    return;
+  }
+  const { data, error } = await supabase
+    .from("dekidai_rotations")
+    .select("hall_key, hall_name")
+    .in("hall_key", hallKeys);
+  if (error) {
+    hallSelect.innerHTML = `<option value="">読み込みエラー</option>`;
+    return;
+  }
+  const seen = new Map();
+  for (const r of data || []) if (!seen.has(r.hall_key)) seen.set(r.hall_key, r.hall_name);
+  // hallKeys の順番を保つ（プレサス→木場、の指定順）
+  const options = hallKeys
+    .filter(k => seen.has(k))
+    .map(k => `<option value="${esc(k)}">${esc(seen.get(k))}</option>`);
+  hallSelect.innerHTML = options.length ? options.join("") : `<option value="">(データなし)</option>`;
+}
+
+async function populateMachines() {
+  const hallKey = hallSelect.value;
+  if (!hallKey) {
+    machineSelect.innerHTML = `<option value="">(店舗を選択してください)</option>`;
+    return;
+  }
+  const { data, error } = await supabase
+    .from("dekidai_rotations")
+    .select("group_label")
+    .eq("hall_key", hallKey);
+  if (error) {
+    machineSelect.innerHTML = `<option value="">読み込みエラー</option>`;
+    return;
+  }
+  const labels = [...new Set((data || []).map(r => r.group_label))].sort();
+  const allOpt = `<option value="${ALL_MACHINES}">全機種</option>`;
+  machineSelect.innerHTML = allOpt + labels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+  machineSelect.value = ALL_MACHINES; // デフォルト: 全機種
+}
+
+async function populateDates() {
+  const hallKey = hallSelect.value;
+  const groupLabel = machineSelect.value;
+  if (!hallKey) {
+    dateSelect.innerHTML = `<option value="">(店舗を選択してください)</option>`;
+    return;
+  }
+  let q = supabase.from("dekidai_rotations").select("target_date").eq("hall_key", hallKey);
+  if (groupLabel) q = q.eq("group_label", groupLabel);
+  const { data, error } = await q;
+  if (error) {
+    dateSelect.innerHTML = `<option value="">読み込みエラー</option>`;
+    return;
+  }
+  const dates = [...new Set((data || []).map(r => r.target_date))].sort().reverse(); // 新しい順
+  dateSelect.innerHTML = dates.length
+    ? dates.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")
+    : `<option value="">(データなし)</option>`;
+  if (dates.length) dateSelect.value = dates[0]; // デフォルト: 最新日
+}
+
+async function renderList() {
+  const hallKey = hallSelect.value;
+  const groupLabel = machineSelect.value;
+  const targetDate = dateSelect.value;
+  const rateMin = numOrNull(rateMinInput);
+  const rateMax = numOrNull(rateMaxInput);
+  const cumMin = numOrNull(cumMinInput);
+  contentEl.innerHTML = "";
+
+  if (!hallKey || !targetDate) {
+    statusEl.textContent = "";
+    return;
+  }
+  statusEl.textContent = "読み込み中...";
+
+  let q = supabase
+    .from("dekidai_rotations")
+    .select("unit_id, machine_title, group_label, rotation_rate, cum_start")
+    .eq("hall_key", hallKey)
+    .eq("target_date", targetDate);
+  if (groupLabel) q = q.eq("group_label", groupLabel);
+  const { data, error } = await q;
+
+  if (error) {
+    statusEl.textContent = `読み込みエラー: ${error.message}`;
+    return;
+  }
+
+  const filtered = (data || []).filter(r => {
+    const rate = r.rotation_rate != null ? Number(r.rotation_rate) : null;
+    const cum = r.cum_start != null ? Number(r.cum_start) : null;
+    if (rateMin != null && (rate == null || rate < rateMin)) return false;
+    if (rateMax != null && (rate == null || rate > rateMax)) return false;
+    if (cumMin != null && (cum == null || cum < cumMin)) return false;
+    return true;
+  });
+  filtered.sort((a, b) => Number(b.rotation_rate) - Number(a.rotation_rate));
+
+  if (!filtered.length) {
+    statusEl.textContent = `${targetDate}: 条件に合うデータなし（全${(data || []).length}件中）`;
+    return;
+  }
+  statusEl.textContent = `${targetDate}: ${filtered.length}件（全${(data || []).length}件中、フィルタ適用後）`;
+
+  const showMachineCol = !groupLabel;
+  const rows = filtered.map(r => `<tr>
+    <td>${esc(r.unit_id)}</td>
+    ${showMachineCol ? `<td>${esc(r.machine_title || r.group_label)}</td>` : ""}
+    <td>${fmt(r.rotation_rate)}</td>
+    <td>${r.cum_start != null ? fmt(r.cum_start, 0) : "–"}</td>
+  </tr>`).join("");
+
+  contentEl.innerHTML = `
+    <div class="bg-white/80 backdrop-blur rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="max-h-[70vh] overflow-y-auto">
+        <table class="list w-full text-sm">
+          <thead><tr>
+            <th>台番号</th>${showMachineCol ? "<th>機種</th>" : ""}<th>1k回転</th><th>総回転数</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+regionSelect.addEventListener("change", async () => {
+  await populateHalls();
+  await populateMachines();
+  await populateDates();
+  await renderList();
+});
+hallSelect.addEventListener("change", async () => {
+  await populateMachines();
+  await populateDates();
+  await renderList();
+});
+machineSelect.addEventListener("change", async () => {
+  await populateDates();
+  await renderList();
+});
+dateSelect.addEventListener("change", renderList);
+[rateMinInput, rateMaxInput, cumMinInput].forEach(el => el.addEventListener("input", renderList));
+
+(async () => {
+  populateRegions();
+  await populateHalls();
+  await populateMachines();
+  await populateDates();
+  await renderList();
+})();
+</script>
+</body>
+</html>
