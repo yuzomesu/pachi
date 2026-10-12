@@ -111,6 +111,28 @@ function numOrNull(el) {
   const v = el.value.trim();
   return v === "" ? null : Number(v);
 }
+function todayJstIso() {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${jst.getUTCFullYear()}-${String(jst.getUTCMonth() + 1).padStart(2, "0")}-${String(jst.getUTCDate()).padStart(2, "0")}`;
+}
+
+// Supabase側は1リクエストあたり最大1000行に制限されているため、
+// 全件の distinct 値が必要な場合はページングして回収する。
+async function fetchColumnPaged(column, filters) {
+  const values = new Set();
+  const PAGE = 1000;
+  let from = 0;
+  while (true) {
+    let q = supabase.from("dekidai_rotations_all").select(column).range(from, from + PAGE - 1);
+    for (const [col, val] of Object.entries(filters)) q = q.eq(col, val);
+    const { data, error } = await q;
+    if (error) throw error;
+    for (const r of data || []) if (r[column]) values.add(r[column]);
+    if (!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+  return values;
+}
 
 function populateRegions() {
   regionSelect.innerHTML = Object.keys(REGIONS)
@@ -124,16 +146,16 @@ async function populateHalls() {
     hallSelect.innerHTML = `<option value="">(データなし)</option>`;
     return;
   }
-  const { data, error } = await supabase
-    .from("dekidai_rotations")
-    .select("hall_key, hall_name")
-    .in("hall_key", hallKeys);
-  if (error) {
-    hallSelect.innerHTML = `<option value="">読み込みエラー</option>`;
-    return;
-  }
+  // hall_key ごとに1件だけ取得すれば hall_name は分かる（全件ページングは不要）
   const seen = new Map();
-  for (const r of data || []) if (!seen.has(r.hall_key)) seen.set(r.hall_key, r.hall_name);
+  for (const k of hallKeys) {
+    const { data, error } = await supabase
+      .from("dekidai_rotations_all")
+      .select("hall_name")
+      .eq("hall_key", k)
+      .limit(1);
+    if (!error && data && data.length) seen.set(k, data[0].hall_name);
+  }
   // hallKeys の順番を保つ（プレサス→木場、の指定順）
   const options = hallKeys
     .filter(k => seen.has(k))
@@ -147,15 +169,15 @@ async function populateMachines() {
     machineSelect.innerHTML = `<option value="">(店舗を選択してください)</option>`;
     return;
   }
-  const { data, error } = await supabase
-    .from("dekidai_rotations")
-    .select("group_label")
-    .eq("hall_key", hallKey);
-  if (error) {
+  machineSelect.innerHTML = `<option value="">読み込み中...</option>`;
+  let labelSet;
+  try {
+    labelSet = await fetchColumnPaged("machine_title", { hall_key: hallKey });
+  } catch (_) {
     machineSelect.innerHTML = `<option value="">読み込みエラー</option>`;
     return;
   }
-  const labels = [...new Set((data || []).map(r => r.group_label))].sort();
+  const labels = [...labelSet].sort();
   const allOpt = `<option value="${ALL_MACHINES}">全機種</option>`;
   machineSelect.innerHTML = allOpt + labels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
   machineSelect.value = ALL_MACHINES; // デフォルト: 全機種
@@ -163,28 +185,33 @@ async function populateMachines() {
 
 async function populateDates() {
   const hallKey = hallSelect.value;
-  const groupLabel = machineSelect.value;
+  const machineTitle = machineSelect.value;
   if (!hallKey) {
     dateSelect.innerHTML = `<option value="">(店舗を選択してください)</option>`;
     return;
   }
-  let q = supabase.from("dekidai_rotations").select("target_date").eq("hall_key", hallKey);
-  if (groupLabel) q = q.eq("group_label", groupLabel);
-  const { data, error } = await q;
-  if (error) {
+  dateSelect.innerHTML = `<option value="">読み込み中...</option>`;
+  const filters = { hall_key: hallKey };
+  if (machineTitle) filters.machine_title = machineTitle;
+  let dateSet;
+  try {
+    dateSet = await fetchColumnPaged("target_date", filters);
+  } catch (_) {
     dateSelect.innerHTML = `<option value="">読み込みエラー</option>`;
     return;
   }
-  const dates = [...new Set((data || []).map(r => r.target_date))].sort().reverse(); // 新しい順
-  dateSelect.innerHTML = dates.length
-    ? dates.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")
-    : `<option value="">(データなし)</option>`;
-  if (dates.length) dateSelect.value = dates[0]; // デフォルト: 最新日
+  const today = todayJstIso();
+  dateSet.add(today); // 今日の日付は常に選択肢に入れる（データが無くても選べるように）
+  const dates = [...dateSet].sort().reverse(); // 新しい順
+  dateSelect.innerHTML = dates
+    .map(d => `<option value="${esc(d)}">${esc(d)}${d === today ? "（今日）" : ""}</option>`)
+    .join("");
+  dateSelect.value = today; // デフォルト: 今日の日付
 }
 
 async function renderList() {
   const hallKey = hallSelect.value;
-  const groupLabel = machineSelect.value;
+  const machineTitle = machineSelect.value;
   const targetDate = dateSelect.value;
   const rateMin = numOrNull(rateMinInput);
   const rateMax = numOrNull(rateMaxInput);
@@ -198,11 +225,12 @@ async function renderList() {
   statusEl.textContent = "読み込み中...";
 
   let q = supabase
-    .from("dekidai_rotations")
-    .select("unit_id, machine_title, group_label, rotation_rate, cum_start")
+    .from("dekidai_rotations_all")
+    .select("unit_id, machine_title, rotation_rate, cum_start")
     .eq("hall_key", hallKey)
-    .eq("target_date", targetDate);
-  if (groupLabel) q = q.eq("group_label", groupLabel);
+    .eq("target_date", targetDate)
+    .range(0, 999);
+  if (machineTitle) q = q.eq("machine_title", machineTitle);
   const { data, error } = await q;
 
   if (error) {
@@ -226,10 +254,10 @@ async function renderList() {
   }
   statusEl.textContent = `${targetDate}: ${filtered.length}件（全${(data || []).length}件中、フィルタ適用後）`;
 
-  const showMachineCol = !groupLabel;
+  const showMachineCol = !machineTitle;
   const rows = filtered.map(r => `<tr>
     <td>${esc(r.unit_id)}</td>
-    ${showMachineCol ? `<td>${esc(r.machine_title || r.group_label)}</td>` : ""}
+    ${showMachineCol ? `<td>${esc(r.machine_title)}</td>` : ""}
     <td>${fmt(r.rotation_rate)}</td>
     <td>${r.cum_start != null ? fmt(r.cum_start, 0) : "–"}</td>
   </tr>`).join("");
